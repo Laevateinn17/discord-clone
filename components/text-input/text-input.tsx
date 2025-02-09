@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from './styles.module.css'
 
 export interface TextInputProps {
@@ -15,6 +15,16 @@ export interface TextInputProps {
 
 export default function TextInput({ label, type = "text", isRequired = false, helper, value, onChange, errorMessage}: TextInputProps) {
     const [focus, setFocus] = useState(false)
+    const helperTextContainerRef = useRef<HTMLDivElement>(null!);
+    const [maxHeight, setMaxHeight] = useState("0px");
+    
+    useEffect(() => {
+        if (helperTextContainerRef.current) {
+            const scrollHeight = helperTextContainerRef.current.scrollHeight;
+            setMaxHeight(focus ? `${scrollHeight}px` : "0px");
+        }
+    }, [focus])
+    
     return (
         <div className={styles.container}>
             <div className={styles['label-container']}>
@@ -26,7 +36,7 @@ export default function TextInput({ label, type = "text", isRequired = false, he
                 <input className={styles['input']} type={type} value={value} onChange={(e) => onChange(e.target.value)}/>
             </div>
             {helper &&
-                <div className={`${styles["text-helper"]} ${focus && styles["text-helper-active"]}`}>
+                <div className={`${styles["text-helper"]} ${focus ? styles["text-helper-active"] : ""}`} style={{maxHeight: maxHeight}} ref={helperTextContainerRef}>
                     <p>{helper}</p>
                 </div>}
         </div>

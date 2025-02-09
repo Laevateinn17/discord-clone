@@ -1,0 +1,14 @@
+.guild-list-container {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px;
+    background: var(--background-tertiary);
+    padding-top: 12px;
+    align-items: center;
+}
+
+.horizontal-divider {
+    height: 2px;
+    width: 32px;
+    background-color: var(--header-modifier-accent);
+}

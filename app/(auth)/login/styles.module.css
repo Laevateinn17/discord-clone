@@ -1,21 +1,4 @@
 
-.page{
-    background-image: url('/login_background.svg');
-    background-size: cover;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.logo {
-    width: auto;
-    position: absolute;
-    top: 48px;
-    left: 48px;
-    box-sizing: content-box;
-}
-
 .content-wrapper {
     display: flex;
     position: absolute;
@@ -28,12 +11,30 @@
     min-height: 580px;
 }
 
+@keyframes show {
+  0% {
+    transform: translateY(-25%) scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+
 .content-container {
+    animation: 100ms ease-in-out 0s 1 show;
     display: flex;
     background-color: var(--container-background);
     padding: 32px;
     border-radius: 8px;
-    /* flex: 1 1 auto; */
+    transition: all 100ms ease-in;
+}
+
+.content-container-disappear {
+    transform: translateY(-25%) scale(1.5);
+    opacity: 0;
 }
 
 .login-container {

@@ -3,6 +3,8 @@
 .container {
     display: flex;
     align-items: center;
+    user-select: none;
+    cursor: pointer;
 }
 
 .checkbox {
@@ -12,7 +14,6 @@
     background-color: var(--input-background);
     border: 1px solid var(--input-border);
     border-radius: 6px;
-    cursor: pointer;
     flex-shrink: 0;
 }
 

@@ -35,6 +35,31 @@
   border-radius: 8px;
   transition: all 1000ms linear;
 }
+@keyframes show {
+  0% {
+    transform: translateY(-25%) scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+
+.content-container {
+    animation: 100ms ease-in-out 0s 1 show;
+    display: flex;
+    background-color: var(--container-background);
+    padding: 32px;
+    border-radius: 8px;
+    transition: all 100ms ease-in;
+}
+
+.content-container-disappear {
+    transform: translateY(-25%) scale(1.5);
+    opacity: 0;
+}
 
 .register-container {
   display: flex;

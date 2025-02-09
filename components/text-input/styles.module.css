@@ -23,18 +23,18 @@
 }
 
 .text-helper {
-    margin-top: 10px;
     font-size: 14px;
-    opacity: 0;
-    height: 0;
-    overflow: hidden;
-    transition: opacity 300ms ease, height 300ms ease;
     line-height: 1.25;
+    overflow: hidden;
+    margin-top: 10px;
+    opacity: 0;
+    transform: translateY(10);
+    transition: all 0.3s ease-in, opacity 0.4s ease-out;
 }
 
 .text-helper-active {
+    transform: translateY(0);
     opacity: 1;
-    height: auto;
 }
 
 /* .text-helper {

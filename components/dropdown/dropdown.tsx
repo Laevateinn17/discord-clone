@@ -50,7 +50,7 @@ export default function Dropdown({ placeholder, values, value, onChange }: Dropd
                     filteredResult.map((item) => {
                         return (
                             <div className={styles["dropdown-select-item"]} key={item} onClick={() => {
-                                onChange(item);
+                                onChange(item.toString());
                                 setShowDropdown(false);
                             }}>{item}</div>
                         )

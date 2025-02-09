@@ -1,0 +1,32 @@
+import { Response } from "@/interfaces/response";
+import { UserData } from "@/interfaces/UserData";
+import axios, { AxiosError, HttpStatusCode } from "axios";
+import { api } from "../api";
+
+const ENDPOINT = `${process.env.NEXT_PUBLIC_API_URL}/users`
+
+export async function getCurrentUserData(): Promise<Response<UserData>> {
+    console.log('getting current user')
+    try {
+        const response = await api.get(ENDPOINT + '/current');
+        if (response.status === HttpStatusCode.Ok) {
+            return Response.Success<UserData>({
+                data: response.data.data,
+                message: response.data.message
+            });
+        }
+        return Response.Failed<UserData>({
+            message: response.data.message
+        });
+    } catch (error) {
+        if (error instanceof AxiosError) {
+            return Response.Failed<UserData>({
+                message: error.response ? error.response.data.message as string : "An unknown Error occurred"
+            });
+        }
+
+        return Response.Failed<UserData>({
+            message: "An unknown error occurred."
+        })
+    }
+}

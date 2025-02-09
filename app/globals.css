@@ -3,17 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
+  --background-primary: #313338;
+  --background-tertiary: #1e1f22;
+  --background-secondary: #2b2d31;
   --foreground: #171717;
   --header-secondary: #c5c5d0;
   --input-background: #2a2a30;
   --input-border: #3d3d43;
   --text-link: #8EA2FA;
+  --primary: #5865f2;
   --primary-button: #5865f2;
   --container-background: #2e2e34;
   --container-background-hover: #3a3a41;
-  --text-muted: #ababb1;
+  --text-muted: #949ba4;
   --checkbox-background-checked: #5865f2;
+  --header-modifier-accent: #35363c
 }
 
 @media (prefers-color-scheme: dark) {

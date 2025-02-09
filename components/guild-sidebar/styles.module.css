@@ -1,0 +1,20 @@
+
+.container {
+    background: var(--background-secondary);
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.header-container {
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    height: 48px;
+}
+
+.content-container {
+    background: red;
+    flex: 2;
+}
