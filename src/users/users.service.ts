@@ -43,10 +43,7 @@ export class UsersService {
     try {
       const url = `http://${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}/auth/user/${id}`;
       userIdentityResponse = await firstValueFrom(this.authService.get(url));
-      console.log(typeof (userIdentityResponse));
-      console.log(userIdentityResponse)
       if (userIdentityResponse.status !== HttpStatus.OK) {
-        console.log(userIdentityResponse)
         return {
           status: HttpStatus.BAD_REQUEST,
           data: null,
@@ -54,7 +51,6 @@ export class UsersService {
         };
       }
     } catch (error) {
-      console.log(error)
       return {
         status: HttpStatus.BAD_REQUEST,
         data: null,
@@ -65,7 +61,7 @@ export class UsersService {
     return {
       status: HttpStatus.OK,
       message: "User data retrieved successfully",
-      data: { ...userIdentityResponse.data, profile: userProfileResponse.data }
+      data: { ...userIdentityResponse.data.data, profile: userProfileResponse.data }
     };
 
   }
