@@ -5,12 +5,13 @@ import TextInput from '@/components/text-input/text-input'
 import TextLink from '@/components/text-link/text-link'
 import PrimaryButton from "@/components/primary-button/primary-button"
 import { FormEvent, FormEventHandler, useEffect, useReducer, useRef, useState } from "react"
-import { login } from "@/services/auth/auth.service"
+import { login, refreshToken } from "@/services/auth/auth.service"
 import { useAuth } from "@/contexts/auth.context"
 import { Response } from "@/interfaces/response"
 import { AuthResponse } from "@/interfaces/auth-response"
 import { LoginDTO } from "@/interfaces/dto/login.dto"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function Login() {
     const containerRef = useRef<HTMLDivElement>(null!);
@@ -20,18 +21,12 @@ export default function Login() {
     const [identifierError, setIdentifierError] = useState<string | null>(null);
     const [passwordError, setPasswordError] = useState<string | null>(null);
 
-    const { token, setToken } = useAuth();
+    const { user } = useAuth();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const router = useRouter()
 
-
-    useEffect(() => {
-        if (token) {
-            router.push("/channels/me");
-        }
-    }, [token])
 
     function validateIdentifier(): boolean {
         if (identifier.length == 0) {
@@ -73,13 +68,10 @@ export default function Login() {
         if (!response.success) {
             setIdentifierError(response.message as string);
             setPasswordError(response.message as string);
-
             return;
         }
 
-        const accessToken = (response.data as AuthResponse).accessToken;
-        setToken(accessToken);
-
+        router.push('/channels/me');
         setIdentifierError(null);
         setPasswordError(null);
     }

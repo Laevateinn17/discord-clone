@@ -18,6 +18,10 @@ interface UserAreaProps {
 export default function UserArea({ user, openSettingsHandler }: UserAreaProps) {
     const [isHovering, setIsHovering] = useState(false);
 
+    if (!user) {
+        return <div></div>;
+    }
+    
     return (
         <div className={styles["container"]} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
             <div className={styles["user-info-container"]}>

@@ -6,12 +6,12 @@ import { getCurrentUserData } from "@/services/users/users.service";
 import axios, { AxiosInstance, HttpStatusCode } from "axios";
 import { responseCookiesToRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { useRouter } from "next/navigation";
-import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useRef, useState } from "react";
 
 export interface AuthContextType {
-    setToken: (token: string | null) => any
-    token: string | null
-    user: UserData | null
+    user: UserData | null | undefined
+    getUser: () => Promise<UserData | undefined>
+    setUser: Dispatch<SetStateAction<UserData | undefined>>
 }
 
 const AuthContext = createContext<AuthContextType>(null!)
@@ -22,26 +22,25 @@ export function useAuth() {
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [token, setToken] = useState<string | null>(null)
-    const [user, setUser] = useState<UserData | null>(null)
-    const tokenRef = useRef<string | null>(token)
+    const [user, setUser] = useState<UserData | undefined>(undefined)
     const router = useRouter();
 
     useEffect(() => {
-        if (tokenRef.current) {
-            setToken(tokenRef.current)
-        }
-    }, [tokenRef.current])
+        console.log("user state ", user);
+    }, [user])
 
-    useEffect(() => {
-        if (token) {
-            getCurrentUserData().then(response => {
-                if (response.success) {
-                    setUser(response.data!);
-                }
-            });
+    async function getUser() {
+        if (!user) {
+            const response = await getCurrentUserData();
+            if (!response.success) {
+                router.push("/login");
+                return null;
+            }
+            setUser(response.data!);
+            return response.data;
         }
-    }, [token])
+        return user;
+    }
 
     useEffect(() => {
 
@@ -49,17 +48,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (response) => response,
             async (error: any) => {
                 if (error.response.status === HttpStatusCode.Unauthorized && !error.config._retry) {
+                    console.log("refreshing token")
                     error.config._retry = true;
                     try {
                         const response = await refreshToken();
                         if (!response.success) {
+
                             router.push("/login");
                             return Promise.reject(error);
                         }
+                        // const newToken = response.data?.accessToken;
+                        // tokenRef.current = newToken ?? null;
+                        // error.config.headers['Authorization'] = `Bearer ${newToken}`;
 
-                        const newToken = response.data?.accessToken;
-                        tokenRef.current = newToken ?? null;
-                        error.config.headers['Authorization'] = `Bearer ${newToken}`;
+                        const userResponse = await getCurrentUserData();
+                        console.log("token received ", userResponse.data);
+
+                        if (userResponse.success) {
+                            setUser(userResponse.data!);
+                        }
 
                         return api.request(error.config);
                     }
@@ -71,30 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 return Promise.reject(error);
             });
-        const addIdentityInterceptor = api.interceptors.request.use((config) => {
-            const token = tokenRef.current;
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        })
+        // const addIdentityInterceptor = api.interceptors.request.use((config) => {
+        //     const token = tokenRef.current;
+        //     console.log('attaching access token', token);
+        //     if (token) {
+        //         config.headers.Authorization = `Bearer ${token}`;
+        //     }
+        //     return config;
+        // })
 
-        
-        getCurrentUserData().then(response => {
-            if (!response.success) {
-                router.push("/login")
-            }
-            setUser(response.data!);
-        })
         return () => {
             api.interceptors.response.eject(refreshTokenInterceptor)
-            api.interceptors.request.eject(addIdentityInterceptor);
+            // api.interceptors.request.eject(addIdentityInterceptor);
         }
     }, [])
 
 
     return (
-        <AuthContext.Provider value={{ token, setToken, user }}>
+        <AuthContext.Provider value={{ user, getUser, setUser }}>
             {children}
         </AuthContext.Provider>
     );

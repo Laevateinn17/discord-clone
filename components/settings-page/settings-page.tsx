@@ -12,6 +12,9 @@ import IconFacebook from "../social-media/facebook"
 import IconYoutube from "../social-media/youtube"
 import IconTiktok from "../social-media/tiktok"
 import { HiMagnifyingGlass } from "react-icons/hi2"
+import { login, logout } from "@/services/auth/auth.service"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth.context"
 
 interface SettingsPageProps {
     show: boolean
@@ -27,7 +30,7 @@ interface SidebarItem {
 export default function SettingsPage({ show, closeSettingsHandler }: SettingsPageProps) {
     const [searchText, setSearchText] = useState("")
     const headers: string[] = ["User Settings", "Billing Settings", "App Settings", "Activity Settings"];
-
+    
     const sidebarItems: any = {
         "User Settings": [
             {
@@ -160,8 +163,16 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
     }
 
     const [activeItem, setActiveItem] = useState<string>(sidebarItems[headers[0]][0].id);
+    const {setUser} = useAuth();
+    const router = useRouter();
 
+    async function handleLogout() {
+        await logout();
 
+        setUser(null);
+        
+        router.push("/login");
+    }
 
     return (
         <div className={`${styles["page"]} ${show ? styles["page-active"] : ""}`}>
@@ -179,7 +190,6 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
                                         <h2>{header}</h2>
                                     </div>
                                     {sidebarItems[header].map((item: SidebarItem, index: number) => {
-                                        console.log(item.id == activeItem)
                                         return (
                                             <SidebarItem isActive={item.id == activeItem} key={item.id} onClick={() => setActiveItem(item.id)}>{item.element}</SidebarItem>
                                         );
@@ -195,7 +205,7 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
                             <div className={styles["section-separator"]}></div>
                         </div>
                         <div>
-                            <SidebarItem isActive={false} onClick={() => { }}>
+                            <SidebarItem isActive={false} onClick={() => handleLogout()}>
                                 <div className="flex justify-between">
                                     <p>Log out</p>
                                     <LuLogOut />

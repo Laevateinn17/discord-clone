@@ -5,9 +5,9 @@ import GuildSidebar from "@/components/guild-sidebar/guild-sidebar";
 import { Fragment, ReactNode, useEffect, useState } from "react";
 import UserArea from "@/components/user-area/user-area";
 import GuildListSidebar from "@/components/guild-list-sidebar/guild-list-sidebar";
-import { getCurrentUserData } from "@/services/users/users.service";
 import { useAuth } from "@/contexts/auth.context";
 import SettingsPage from "@/components/settings-page/settings-page";
+import { getCurrentUserData } from "@/services/users/users.service";
 
 interface HomeLayoutProps {
     headerContent: ReactNode
@@ -16,15 +16,22 @@ interface HomeLayoutProps {
 }
 
 export default function HomeLayout({ headerContent, sidebarContent, children }: HomeLayoutProps) {
-    const { user } = useAuth();
+    const { user, getUser, setUser } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSettingOpen, setIsSettingOpen] = useState(false);
+
     useEffect(() => {
         if (user) {
             setIsLoading(false);
         }
+        else {
+            setIsLoading(true);
+        }
     }, [user])
 
+    useEffect(() => {
+        getUser().then(() => setIsLoading(false))
+    }, [])
 
 
     return (

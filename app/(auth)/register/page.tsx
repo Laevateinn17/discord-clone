@@ -33,16 +33,8 @@ export default function Register() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const {token, setToken } = useAuth();
-
     const router = useRouter()
 
-
-    useEffect(() => {
-        if (token) {
-            router.push("/channels/me");
-        }
-    }, [token])
 
     function validateEmail() {
         if (!email || email.length === 0) {
@@ -143,10 +135,8 @@ export default function Register() {
             }
             return;
         }
-        console.log(response);
-        const accessToken = (response.data as AuthResponse).accessToken;
-        setToken(accessToken);
 
+        router.push('/channels/me');
         setEmailError(null);
         setPasswordError(null);
         setUsernameError(null);

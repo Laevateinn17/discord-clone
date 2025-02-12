@@ -7,7 +7,10 @@ const ENDPOINT = `${process.env.NEXT_PUBLIC_API_URL}/users`
 
 export async function getCurrentUserData(): Promise<Response<UserData>> {
     try {
-        const response = await api.get(ENDPOINT + '/current');
+        console.log("fetching user data")
+        const response = await api.get(ENDPOINT + '/current', {
+            withCredentials: true
+        });
         if (response.status === HttpStatusCode.Ok) {
             return Response.Success<UserData>({
                 data: response.data.data,
@@ -18,14 +21,13 @@ export async function getCurrentUserData(): Promise<Response<UserData>> {
             message: response.data.message
         });
     } catch (error) {
-        if (error instanceof AxiosError) {
+        if (error instanceof AxiosError)
             return Response.Failed<UserData>({
                 message: error.response ? error.response.data.message as string : "An unknown Error occurred"
             });
-        }
-
-        return Response.Failed<UserData>({
-            message: "An unknown error occurred."
-        })
     }
+
+    return Response.Failed<UserData>({
+        message: "An unknown error occurred."
+    })
 }

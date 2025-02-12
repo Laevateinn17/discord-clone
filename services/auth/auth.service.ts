@@ -12,10 +12,9 @@ export async function login(dto: LoginDTO): Promise<Response<AuthResponse | null
         const response = await api.post(ENDPOINT + '/login', dto, {
             withCredentials: true
         });
-
         if (response.status === HttpStatusCode.Ok) {
             return Response.Success<AuthResponse>({
-                data: { accessToken: response.data.data.accessToken },
+                data: {},
                 message: response.data.message
             });
         }
@@ -23,6 +22,7 @@ export async function login(dto: LoginDTO): Promise<Response<AuthResponse | null
             message: response.data.message
         });
     } catch (error) {
+        console.log(error)
         if (error instanceof AxiosError) {
             return Response.Failed<null>({
                 message: error.response ? error.response.data.message as string : "Error"
@@ -43,7 +43,7 @@ export async function register(dto: RegisterDTO): Promise<Response<AuthResponse>
         console.log(response)
         if (response.status === HttpStatusCode.Created) {
             return Response.Success<AuthResponse>({
-                data: { accessToken: response.data.data.accessToken },
+                data: {},
                 message: response.data.message as string
             });
         }
@@ -67,10 +67,11 @@ export async function refreshToken(): Promise<Response<AuthResponse>> {
     try {
         const response = await axios.post(ENDPOINT + '/refresh-token', {}, {
             withCredentials: true,
+            timeout: 10000
         });
         if (response.status === HttpStatusCode.Ok) {
             return Response.Success<AuthResponse>({
-                data: { accessToken: response.data.data },
+                data: {},
                 message: response.data.message
             });
         }
@@ -88,4 +89,32 @@ export async function refreshToken(): Promise<Response<AuthResponse>> {
             message: "An unknown error occurred."
         })
     }
+}
+
+export async function logout() {
+    try {
+        const response = await api.post(ENDPOINT + '/logout', null, {
+            withCredentials: true,
+        });
+        if (response.status === HttpStatusCode.Created) {
+            return Response.Success<AuthResponse>({
+                data: {},
+                message: response.data.message as string
+            });
+        }
+        return Response.Failed<AuthResponse>({
+            message: new RegisterError(response.data.message)
+        });
+    } catch (error) {
+        if (error instanceof AxiosError) {
+            return Response.Failed<AuthResponse>({
+                message: error.response ? new RegisterError(error.response.data.message) : "An unknown Error occurred"
+            });
+        }
+
+        return Response.Failed<AuthResponse>({
+            message: "An unknown error occurred."
+        })
+    }
+
 }
