@@ -8,6 +8,9 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v4
+      - name: Create .env.production
+        run: |
+          echo "NEXT_PUBLIC_API_URL=${{ secrets.API_URL }}" > .env.production
       - name: build image
         run: docker build -t vincentramaputra/viscord-web:latest .
       -
