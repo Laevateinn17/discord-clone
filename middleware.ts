@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getCookie } from "./services/cookies/cookies.service"
+import { NextRequest, NextResponse } from "next/server";
+import { useAuth } from "./contexts/auth.context";
 
-export function middleware(request: NextRequest) {
-  return NextResponse.redirect(new URL('/home', request.url))
-}
 
-export const config = {
-  matcher: [
-    // "/((login|register).*)"
-  ]
+
+export default function middleware(request: NextRequest) {
+    // const {user} = useAuth();
+
+    // console.log("user is ", user);
+    return NextResponse.next();
 }

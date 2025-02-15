@@ -23,15 +23,19 @@ export default function Login() {
 
     const { user } = useAuth();
 
+    const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const router = useRouter();
 
     useEffect(() => {
-        if (user) {
-            router.push("/channels/me");
+        if (user !== null) {
+            if (user !== undefined) {
+                router.push("/channels/me");
+            }
+            setIsLoading(false);
         }
-    }, [user]) // maybe perform this logic in middleware
+    }, [user])
 
     function validateIdentifier(): boolean {
         if (identifier.length == 0) {
@@ -82,6 +86,7 @@ export default function Login() {
     }
 
     return (
+        !isLoading &&
         <div className={styles['content-container'] + " drop-shadow-xl"} ref={containerRef}>
             <div className={styles['login-container']}>
                 <div className={styles['title-container']}>

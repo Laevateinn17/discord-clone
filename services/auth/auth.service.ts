@@ -7,7 +7,6 @@ import { api } from "../api";
 import { RegisterError } from "@/interfaces/errors/register-error";
 
 const ENDPOINT = process.env.NEXT_PUBLIC_API_URL + '/auth';
-console.log(process.env.NEXT_PUBLIC_API_URL);
 export async function login(dto: LoginDTO): Promise<Response<AuthResponse | null>> {
     try {
         const response = await api.post(ENDPOINT + '/login', dto, {

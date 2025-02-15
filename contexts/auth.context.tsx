@@ -9,9 +9,9 @@ import { useRouter } from "next/navigation";
 import { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useRef, useState } from "react";
 
 export interface AuthContextType {
-    user: UserData | undefined
-    getUser: () => Promise<UserData | undefined>
-    setUser: Dispatch<SetStateAction<UserData | undefined>>
+    user: UserData | undefined | null
+    getUser: () => Promise<UserData | undefined | null>
+    setUser: Dispatch<SetStateAction<UserData | undefined | null>>
 }
 
 const AuthContext = createContext<AuthContextType>(null!)
@@ -22,15 +22,14 @@ export function useAuth() {
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<UserData | undefined>(undefined)
+    const [user, setUser] = useState<UserData | undefined | null>(null)
     const router = useRouter();
 
     useEffect(() => {
         console.log("user state ", user);
     }, [user])
 
-    async function getUser(): Promise<UserData | undefined> {
-        console.log("getting user")
+    async function getUser(): Promise<UserData | undefined | null> {
         if (!user) {
             const response = await getCurrentUserData();
             if (response.success) {
@@ -70,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         return api.request(error.config);
                     }
                     catch (error: any) {
+                        setUser(undefined);
                         router.push("/login");
                         return error.response;
                     }
