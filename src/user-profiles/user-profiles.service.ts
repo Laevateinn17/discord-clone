@@ -8,6 +8,8 @@ import { Result } from 'src/interfaces/result.interface';
 import { mapper } from 'src/mappings/mappers';
 import { createMap } from '@automapper/core';
 import { UserProfileResponseDTO } from './dto/user-profile-response.dto';
+import { UserStatus } from "./enums/user-status.enum";
+import { UpdateStatusDTO } from "src/users/dto/update-status.dto";
 
 @Injectable()
 export class UserProfilesService {
@@ -31,7 +33,6 @@ export class UserProfilesService {
   }
 
   async getById(id: string): Promise<Result<UserProfileResponseDTO>> {
-    console.log(id)
     if (!id || id.length == 0) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -67,6 +68,38 @@ export class UserProfilesService {
     }
   }
 
+  async updateStatus(dto: UpdateStatusDTO): Promise<Result<null>> {
+    const userResponse = await this.getById(dto.id);
+
+    if (userResponse.status != HttpStatus.OK) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: userResponse.message,
+        data: null
+      };
+    }
+
+    try {
+      const userProfile = mapper.map(userResponse.data, UserProfileResponseDTO, UserProfile);
+      userProfile.status = dto.status;
+      await this.userProfileRepository.save(userProfile);
+
+      return {
+        status: HttpStatus.OK,
+        message: "Status updated successfully",
+        data: null
+      };
+    } catch (error) {
+      console.log(error)
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "An error occurred when updating user status",
+      };
+    }
+
+  }
+
   findOne(id: number) {
     return `This action returns a #${id} userProfile`;
   }
@@ -78,6 +111,7 @@ export class UserProfilesService {
   onModuleInit() {
     createMap(mapper, CreateUserProfileDto, UserProfile);
     createMap(mapper, UserProfile, UserProfileResponseDTO);
+    createMap(mapper, UserProfileResponseDTO, UserProfile);
   }
 
 }

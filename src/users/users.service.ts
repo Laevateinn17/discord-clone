@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Get, Headers, HttpStatus, Injectable, Param } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from "@nestjs/typeorm";
@@ -11,6 +11,7 @@ import { Result } from "src/interfaces/result.interface";
 import { UserResponseDTO } from "./dto/user-response.dto";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { mapper } from "src/mappings/mappers";
+import { AxiosResponse } from "axios";
 
 @Injectable()
 export class UsersService {
@@ -63,7 +64,36 @@ export class UsersService {
       message: "User data retrieved successfully",
       data: { ...userIdentityResponse.data.data, profile: userProfileResponse.data }
     };
+  }
 
+  async getProfileByUsername(username: string): Promise<Result<UserProfileResponseDTO>> {
+    let userIdentityResponse: AxiosResponse;
+    try {
+      const url = `http://${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}/auth/username/${username}`;
+      userIdentityResponse = (await firstValueFrom(this.authService.get(url))).data;
+      if (userIdentityResponse.status !== HttpStatus.OK) {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          data: null,
+          message: "User does not exist"
+        };
+      }
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "Failed retrieving user identity"
+      };
+    }
+    const userProfileResponse: Result<UserProfileResponseDTO> = await this.userProfilesService.getById(userIdentityResponse.data.id);
+    return userProfileResponse;
+    // if (userIdentityResponse.status != HttpStatus.OK) {
+    //   return {
+    //    status: HttpStatus.BAD_REQUEST,
+    //    message: "An error occurred while getting user's profile",
+    //    data: null 
+    //   };
+    // }
   }
 
   create(createUserDto: CreateUserDto) {

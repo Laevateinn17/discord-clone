@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, OneToOne, PrimaryColumn, PrimaryGener
 import { UserStatus } from "../enums/user-status.enum";
 import { AutoMap } from "@automapper/classes";
 
-@Entity({name: 'user_profile'})
+@Entity({ name: 'user_profile' })
 export class UserProfile {
     @AutoMap()
     @PrimaryColumn()
@@ -24,7 +24,7 @@ export class UserProfile {
     @Column({
         type: 'enum',
         enum: UserStatus,
-        default: UserStatus.Offline
+        default: UserStatus.Online
     })
     status: UserStatus;
 
@@ -40,16 +40,16 @@ export class UserProfile {
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt: Date;
 
-    static create(profile: Partial<UserProfile>) {
-        const ret = new UserProfile();
-        ret.displayName = profile.displayName || '';
-        ret.pronouns = profile.pronouns || undefined;
-        ret.bio = profile.bio || undefined;
-        ret.status = profile.status || UserStatus.Offline;  // Default to Offline if not provided
-        ret.profilePictureURL = profile.profilePictureURL || undefined;
-        ret.createdAt = profile.createdAt || new Date();  // You can provide default values if needed
-        ret.updatedAt = profile.updatedAt || new Date();
+    // static create(profile: Partial<UserProfile>) {
+    //     const ret = new UserProfile();
+    //     ret.displayName = profile.displayName || '';
+    //     ret.pronouns = profile.pronouns || undefined;
+    //     ret.bio = profile.bio || undefined;
+    //     ret.status = profile.status || UserStatus.Offline;  // Default to Offline if not provided
+    //     ret.profilePictureURL = profile.profilePictureURL || undefined;
+    //     ret.createdAt = profile.createdAt || new Date();  // You can provide default values if needed
+    //     ret.updatedAt = profile.updatedAt || new Date();
 
-        return ret;
-    }
+    //     return ret;
+    // }
 }

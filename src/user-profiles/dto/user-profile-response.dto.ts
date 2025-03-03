@@ -3,7 +3,7 @@ import { UserStatus } from "../enums/user-status.enum";
 
 export class UserProfileResponseDTO {
     @AutoMap()
-    id: number
+    id: string
 
     @AutoMap()
     displayName: string;

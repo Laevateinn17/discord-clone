@@ -10,18 +10,29 @@ async function bootstrap() {
     methods: 'GET,POST,PUT,DELETE',
     // credentials: true
   });
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
       urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
-      queue: 'user_queue',
+      queue: 'user-queue',
       queueOptions: {
         durable: true
       }
     }
   });
 
-  // await app.startAllMicroservices();
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
+      queue: 'user-status-queue',
+      queueOptions: {
+        durable: true
+      }
+    }
+  });
+
   await app.listen(process.env.APP_PORT);
   //  try {
   await app.startAllMicroservices();
