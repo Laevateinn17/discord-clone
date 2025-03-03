@@ -7,9 +7,8 @@ import { Observable } from 'rxjs';
 export class AuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) { }
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    console.log('from guard')
     const request: Request = context.switchToHttp().getRequest();
-    const token = this.extractToken(request);
+    const token = request.cookies["accessToken"];
 
     if (!token) {
       throw new UnauthorizedException();
@@ -18,7 +17,8 @@ export class AuthGuard implements CanActivate {
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
       request['userId'] = payload['userId'];
-    } catch {
+    } catch(error) {
+      console.log(error)
       throw new UnauthorizedException();
     }
 

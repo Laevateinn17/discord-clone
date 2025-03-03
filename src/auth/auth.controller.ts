@@ -16,19 +16,25 @@ export class AuthController {
   async register(@Body(new ValidationPipe({ transform: true })) userData: RegisterUserDTO, @Res() res: Response) {
     const result = await this.authService.register(userData);
     const { status } = result
-    
+
     if (status === HttpStatus.CREATED) {
       res.cookie('refreshToken', result.data.refreshToken, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: "lax",
         path: '/',
         maxAge: 365 * 24 * 60 * 60 * 1000
       });
-
+      res.cookie('accessToken', result.data.accessToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: '/',
+        maxAge: 5 * 60 * 1000 // 5 mins
+      });
+      delete result.data.accessToken;
       delete result.data.refreshToken;
     }
 
-    return res.status(status).json(result)
+    return res.status(status).json(result);
   }
 
   @Post('login')
@@ -39,17 +45,23 @@ export class AuthController {
     if (status === HttpStatus.OK) {
       res.cookie('refreshToken', result.data.refreshToken, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: "lax",
         path: '/',
-        maxAge: 365 * 24 * 60 * 60 * 1000
+        maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
       });
+      res.cookie('accessToken', result.data.accessToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: '/',
+        maxAge: 5 * 60 * 1000 // 5 mins
+      });
+      delete result.data.accessToken;
       delete result.data.refreshToken;
     }
 
 
     return res.status(status).json(result);
   }
-
 
   @UseGuards(AuthGuard)
   @Patch('update-username')
@@ -76,7 +88,6 @@ export class AuthController {
   async verifyToken(@Req() request: Request, @Res() res: Response) {
     const id = request['userId'];
 
-    console.log('verifying id')
     res.setHeader('X-User-Id', id);
     return res.status(HttpStatus.OK).json({ id });
   }
@@ -92,13 +103,50 @@ export class AuthController {
     const id = request['userId'];
     const result = await this.authService.refreshToken(id);
     const { status } = result;
+    if (result.status == HttpStatus.OK) {
+      res.cookie('accessToken', result.data, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: '/',
+        maxAge: 5 * 60 * 1000 // 5 mins
+      });
+    }
 
     return res.status(status).json(result);
   }
 
-  @Get('/user/:id')
+  @UseGuards(AuthGuard)
+  @Post('logout')
+  async logout(@Req() req: Request, @Res() res: Response) {
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    // res.cookie('accessToken', "", {
+    //   httpOnly: true,
+    //   sameSite: "lax",
+    //   path: '/',
+    //   maxAge: 0
+    // })
+    // res.cookie('refreshToken', "", {
+    //   httpOnly: true,
+    //   sameSite: "lax",
+    //   path: '/refresh-token',
+    //   maxAge: 0
+    // })
+
+    return res.status(HttpStatus.OK).send();
+  }
+
+  @Get('user/:id')
   async getUserIdentity(@Param('id') id: string, @Res() res: Response) {
     const result = await this.authService.getUserIdentity(id);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Get('username/:username')
+  async getUserIdentityByUsername(@Param('username') username: string, @Res() res: Response) {
+    const result = await this.authService.getUserIdentityByUsername(username);
     const { status } = result;
 
     return res.status(status).json(result);

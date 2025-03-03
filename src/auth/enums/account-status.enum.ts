@@ -1,6 +1,12 @@
 
 export enum AccountStatus {
-    Active = 'Active',
-    Disabled = 'Disabled',
-    Banned = 'Banned',
+    Active = 0,
+    Disabled = 1,
+    Banned = 2,
+}
+
+export const AccountStatusString = {
+    [AccountStatus.Active]: "Active",
+    [AccountStatus.Disabled]: "Disabled",
+    [AccountStatus.Banned]: "Banned",
 }

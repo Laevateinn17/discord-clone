@@ -17,6 +17,7 @@ import { UserIdentityResponseDTO } from "./dto/user-identity-response.dto";
 import { ErrorResponse } from "./errors/error-response";
 import { RegisterError } from "./errors/register-error";
 import { registerDecorator } from "class-validator";
+import { UserIdentityCompactResponseDTO } from "./dto/user-identity-compact-response.dto";
 
 @Injectable()
 export class AuthService {
@@ -30,7 +31,7 @@ export class AuthService {
       transport: Transport.RMQ,
       options: {
         urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
-        queue: 'user_queue',
+        queue: 'user-queue',
         queueOptions: { durable: true }
       }
     });
@@ -52,7 +53,7 @@ export class AuthService {
       return {
         status: HttpStatus.BAD_REQUEST,
         message: {
-         email:'This email is already registered'
+          email: 'This email is already registered'
         } as RegisterError,
         data: null
       };
@@ -81,7 +82,7 @@ export class AuthService {
     delete user.password;
 
     //send message to userprofile service
-    this.userService.emit('user_created', {
+    this.userService.emit('user-created', {
       id: user.id,
       displayName: userData.displayName
     });
@@ -203,7 +204,6 @@ export class AuthService {
   }
 
   async getUserIdentity(id: string): Promise<Result<UserIdentityResponseDTO>> {
-
     if (!id || id.length == 0) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -230,18 +230,55 @@ export class AuthService {
         data: mapper.map(user, UserIdentity, UserIdentityResponseDTO),
         message: "User identity retrieved successfully"
       };
-    } catch(error) {
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "User not found",
+      };
+    }
+  }
+
+  async getUserIdentityByUsername(username: string): Promise<Result<UserIdentityCompactResponseDTO>> {
+    if (!username || username.length == 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "Invalid request",
+      };
+    }
+
+    try {
+
+      const user: UserIdentity = await this.userRepository.findOne({ where: { username: username } });
+
+      if (!user) {
         return {
           status: HttpStatus.BAD_REQUEST,
           data: null,
           message: "User not found",
         };
+      }
+
+      delete user.password;
+      return {
+        status: HttpStatus.OK,
+        data: mapper.map(user, UserIdentity, UserIdentityResponseDTO),
+        message: "User identity retrieved successfully"
+      };
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "User not found",
+      };
     }
   }
 
   onModuleInit() {
     createMap(mapper, RegisterUserDTO, UserIdentity);
     createMap(mapper, UserIdentity, UserIdentityResponseDTO);
+    createMap(mapper, UserIdentity, UserIdentityCompactResponseDTO);
   }
 
 }
