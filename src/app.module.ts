@@ -4,11 +4,14 @@ import { DatabaseModule } from './database/database.module';
 import { UserProfilesModule } from './user-profiles/user-profiles.module';
 import { UsersModule } from './users/users.module';
 import { RelationshipsModule } from './relationships/relationships.module';
+import { StorageService } from './storage/storage.service';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
     isGlobal: true,
     envFilePath: '.env'
-  }), DatabaseModule, UserProfilesModule, UsersModule, RelationshipsModule],
+  }), DatabaseModule, UserProfilesModule, UsersModule, RelationshipsModule, StorageModule],
+  providers: [StorageService],
 })
 export class AppModule { }

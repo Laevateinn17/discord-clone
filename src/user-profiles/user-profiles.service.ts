@@ -1,6 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { CreateUserProfileDto } from './dto/create-user-profile.dto';
-import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserProfile } from './entities/user-profile.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,16 +7,18 @@ import { Result } from 'src/interfaces/result.interface';
 import { mapper } from 'src/mappings/mappers';
 import { createMap } from '@automapper/core';
 import { UserProfileResponseDTO } from './dto/user-profile-response.dto';
-import { UserStatus } from "./enums/user-status.enum";
 import { UpdateStatusDTO } from "src/users/dto/update-status.dto";
+import { StorageService } from "src/storage/storage.service";
+import { UpdateUsernameDTO } from "src/users/dto/update-username.dto";
 
 @Injectable()
 export class UserProfilesService {
   constructor(
+    private readonly storageService: StorageService,
     @InjectRepository(UserProfile) private userProfileRepository: Repository<UserProfile>
   ) { }
 
-  async create(dto: CreateUserProfileDto): Promise<Result<CreateUserProfileDto>> {
+  async create(dto: CreateUserProfileDto): Promise<Result<UserProfileResponseDTO>> {
     const validationMessage = dto.validate();
     if (validationMessage) {
       return {
@@ -27,9 +28,30 @@ export class UserProfilesService {
       };
     }
 
-    let userProfile = mapper.map(dto, CreateUserProfileDto, UserProfile);
-    await this.userProfileRepository.save(userProfile)
-    console.log(`User profile ${userProfile.displayName} is saved`);
+    dto.username = dto.username.toLowerCase();
+    const user = await this.userProfileRepository.findOneBy({ username: dto.username });
+
+    if (user) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "This username is already used",
+        data: null,
+      };
+    }
+
+    const userProfile = mapper.map(dto, CreateUserProfileDto, UserProfile);
+    const defaultAvatarsURL: string[] = await this.storageService.getFiles(process.env.AWS_BUCKET, process.env.IMAGE_ASSET_PATH);
+    const randomIndex = Math.floor(Math.random() * defaultAvatarsURL.length);
+
+    userProfile.defaultAvatarURL = defaultAvatarsURL[randomIndex];
+
+    await this.userProfileRepository.save(userProfile);
+
+    return {
+      status: HttpStatus.CREATED,
+      message: 'User profile created successfully',
+      data: mapper.map(userProfile, UserProfile, UserProfileResponseDTO)
+    };
   }
 
   async getById(id: string): Promise<Result<UserProfileResponseDTO>> {
@@ -42,7 +64,7 @@ export class UserProfilesService {
     }
 
     try {
-      const userProfile: UserProfile = await this.userProfileRepository.findOne({ where: { id: id } });
+      const userProfile: UserProfile = await this.userProfileRepository.findOneBy({id: id});
 
       if (!userProfile) {
         return {
@@ -99,14 +121,60 @@ export class UserProfilesService {
     }
 
   }
+  async updateUsername(id: string, dto: UpdateUsernameDTO): Promise<Result<any>> {
+    const validateResult = dto.validate();
+    if (validateResult) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: validateResult,
+        data: null
+      };
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} userProfile`;
+    await this.userProfileRepository.update(id, { username: dto.username });
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Username updated successfully',
+      data: null
+    };
   }
 
-  update(id: number, updateUserProfileDto: UpdateUserProfileDto) {
-    return `This action updates a #${id} userProfile`;
+  async getProfileByUsername(username: string): Promise<Result<UserProfileResponseDTO>> {
+    if (!username || username.length == 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "Invalid request",
+      };
+    }
+
+    try {
+
+      const user: UserProfile = await this.userProfileRepository.findOne({ where: { username: username } });
+
+      if (!user) {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          data: null,
+          message: "User not found",
+        };
+      }
+
+      return {
+        status: HttpStatus.OK,
+        data: mapper.map(user, UserProfile, UserProfileResponseDTO),
+        message: "User profile retrieved successfully"
+      };
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "User not found",
+      };
+    }
   }
+
 
   onModuleInit() {
     createMap(mapper, CreateUserProfileDto, UserProfile);

@@ -10,10 +10,8 @@ export class UserResponseDTO {
     email: string;
     
     @AutoMap()
-    username: string;
-    
-    @AutoMap()
     dateOfBirth: Date;
 
+    @AutoMap()
     profile: UserProfileResponseDTO
 }

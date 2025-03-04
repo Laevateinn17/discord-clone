@@ -1,10 +1,7 @@
 import { Get, Headers, HttpStatus, Injectable, Param } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { InjectRepository } from "@nestjs/typeorm";
-import { UserProfile } from "src/user-profiles/entities/user-profile.entity";
 import { UserProfilesService } from "src/user-profiles/user-profiles.service";
-import { ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
 import { HttpService } from "@nestjs/axios";
 import { firstValueFrom, lastValueFrom } from "rxjs";
 import { Result } from "src/interfaces/result.interface";
@@ -28,7 +25,7 @@ export class UsersService {
         message: "Invalid request",
       };
     }
-
+    console.log(id)
     const userProfileResponse: Result<UserProfileResponseDTO> = await this.userProfilesService.getById(id);
 
     if (userProfileResponse.status !== HttpStatus.OK) {
@@ -39,7 +36,7 @@ export class UsersService {
       };
     }
 
-    let userIdentityResponse;
+    let userIdentityResponse: AxiosResponse<any, any>;
 
     try {
       const url = `http://${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}/auth/user/${id}`;
@@ -64,36 +61,6 @@ export class UsersService {
       message: "User data retrieved successfully",
       data: { ...userIdentityResponse.data.data, profile: userProfileResponse.data }
     };
-  }
-
-  async getProfileByUsername(username: string): Promise<Result<UserProfileResponseDTO>> {
-    let userIdentityResponse: AxiosResponse;
-    try {
-      const url = `http://${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}/auth/username/${username}`;
-      userIdentityResponse = (await firstValueFrom(this.authService.get(url))).data;
-      if (userIdentityResponse.status !== HttpStatus.OK) {
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          data: null,
-          message: "User does not exist"
-        };
-      }
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        data: null,
-        message: "Failed retrieving user identity"
-      };
-    }
-    const userProfileResponse: Result<UserProfileResponseDTO> = await this.userProfilesService.getById(userIdentityResponse.data.id);
-    return userProfileResponse;
-    // if (userIdentityResponse.status != HttpStatus.OK) {
-    //   return {
-    //    status: HttpStatus.BAD_REQUEST,
-    //    message: "An error occurred while getting user's profile",
-    //    data: null 
-    //   };
-    // }
   }
 
   create(createUserDto: CreateUserDto) {

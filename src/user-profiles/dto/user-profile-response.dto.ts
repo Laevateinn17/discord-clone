@@ -9,6 +9,9 @@ export class UserProfileResponseDTO {
     displayName: string;
     
     @AutoMap()
+    username: string;
+
+    @AutoMap()
     pronouns?: string;
     
     @AutoMap()
@@ -18,8 +21,11 @@ export class UserProfileResponseDTO {
     status: UserStatus;
     
     @AutoMap()
-    profilePictureURL?: string;
+    avatarURL?: string;
     
+    @AutoMap()
+    defaultAvatarURL?: string;
+
     @AutoMap()
     createdAt: Date;
     

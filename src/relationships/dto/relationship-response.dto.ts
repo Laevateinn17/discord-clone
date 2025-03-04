@@ -1,26 +1,20 @@
 import { AutoMap } from "@automapper/classes"
-import { Column, CreateDateColumn } from "typeorm"
 import { RelationshipType } from "../enums/relationship-type.enum"
+import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto"
 
 export class RelationshipResponseDTO {
     @AutoMap()
     id: string
 
     @AutoMap()
-    userId: string
+    user: UserProfileResponseDTO
 
     @AutoMap()
-    @Column({
-        type: 'enum',
-        enum: RelationshipType,
-        default: RelationshipType.None
-    })
     type: RelationshipType
 
-    @CreateDateColumn({ name: 'created_at' })
+    @AutoMap()
     createdAt: Date
 
     @AutoMap()
-    @CreateDateColumn({ name: 'updated_at' })
     updatedAt: Date
 }

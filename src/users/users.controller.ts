@@ -1,13 +1,10 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Res, Headers, ValidationPipe, HttpStatus } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Response } from "express";
 import { UpdateStatusDTO } from "./dto/update-status.dto";
-import { UserProfilesService } from "src/user-profiles/user-profiles.service";
 import { ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
-import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
-import { Result } from "src/interfaces/result.interface";
+import { StorageService } from "src/storage/storage.service";
 
 @Controller('users')
 export class UsersController {
@@ -41,14 +38,6 @@ export class UsersController {
     // const { status } = result;
 
     return res.status(HttpStatus.ACCEPTED).send();
-  }
-
-  @Get('username/:username')
-  async getByUsername(@Headers('X-User-Id') id: string, @Res() res: Response, @Param('username') username: string) {
-    const result = await this.usersService.getProfileByUsername(username);
-    const { status } = result;
-
-    return res.status(status).json(result);
   }
 
   @Get(':id')

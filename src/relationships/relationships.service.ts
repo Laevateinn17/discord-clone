@@ -3,23 +3,22 @@ import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';
 import { InjectRepository } from "@nestjs/typeorm";
 import { Relationship } from "./entities/relationship.entity";
-import { Relation, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { UserProfilesService } from "src/user-profiles/user-profiles.service";
 import { Result } from "src/interfaces/result.interface";
 import { UsersService } from "src/users/users.service";
 import { RelationshipType } from "./enums/relationship-type.enum";
-import { stat } from "fs";
 import { RelationshipResponseDTO } from "./dto/relationship-response.dto";
 
 @Injectable()
 export class RelationshipsService {
   constructor(
-    private readonly usersService: UsersService,
+    private readonly userProfilesService: UserProfilesService,
     @InjectRepository(Relationship) private readonly relationshipRepository: Repository<Relationship>,
 
   ) { }
   async create(senderId: string, dto: CreateRelationshipDto): Promise<Result<null>> {
-    const userProfileResponse = await this.usersService.getProfileByUsername(dto.username);
+    const userProfileResponse = await this.userProfilesService.getProfileByUsername(dto.username);
 
     if (userProfileResponse.status != HttpStatus.OK) {
       return {
@@ -31,7 +30,7 @@ export class RelationshipsService {
 
     const recipient = userProfileResponse.data;
 
-    if (recipient.id === senderId) { // user tries to add himself
+    if (recipient.id === senderId) {
       return {
         status: HttpStatus.BAD_REQUEST,
         message: "Invalid request",
@@ -39,14 +38,13 @@ export class RelationshipsService {
       };
     }
     const relationship: Relationship = new Relationship();
-    relationship.user1Id = senderId;
-    relationship.user2Id = recipient.id;
+    relationship.senderId = senderId;
+    relationship.recipientId = recipient.id;
     relationship.type = RelationshipType.Pending;
 
     try {
       await this.relationshipRepository.save(relationship);
     } catch (error) {
-      console.log(error)
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: "An unknown error occurred",
@@ -70,21 +68,24 @@ export class RelationshipsService {
       };
     }
 
-    const relationships: Relationship[] = await this.relationshipRepository.find({where: [{user1Id: userId}, {user2Id: userId}]});
-    const relationshipsDTO: RelationshipResponseDTO[] = relationships.map((relationship) => {
+    const relationships: Relationship[] = await this.relationshipRepository.find({ where: [{ senderId: userId }, { recipientId: userId }] });
+
+    const relationshipDTOs: RelationshipResponseDTO[] = await Promise.all(relationships.filter(rel => rel.type !== RelationshipType.Blocked || rel.senderId === userId).map(async (relationship) => {
+      const user = (await this.userProfilesService.getById(relationship.senderId !== userId ? relationship.senderId : relationship.recipientId)).data;
       return {
         id: relationship.id,
         type: relationship.type,
-        userId: relationship.user1Id !== userId ? relationship.user1Id : relationship.user2Id,
+        user: user,
         createdAt: relationship.createdAt,
         updatedAt: relationship.updatedAt
       };
-    })
+    }));
+
 
     return {
       status: HttpStatus.OK,
       message: "Relationships retrieved successfully",
-      data: relationshipsDTO
+      data: relationshipDTOs
     }
   }
 
@@ -92,7 +93,7 @@ export class RelationshipsService {
     return `This action returns a #${id} relationship`;
   }
 
-  async update(id: string, dto: UpdateRelationshipDto): Promise<Result<null>> {
+  async update(userId: string, id: string, dto: UpdateRelationshipDto): Promise<Result<null>> {
     if (!id || id.length === 0) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -106,17 +107,17 @@ export class RelationshipsService {
     }
 
     const relationship: Relationship = await this.relationshipRepository.findOneBy({ id: id });
-
-    if (!relationship) {
+    
+    if (!relationship || (relationship.senderId != userId && relationship.recipientId != userId)) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Invalid id",
+        message: "Invalid request",
         data: null
       };
     }
 
     if (dto.type === RelationshipType.Blocked) {
-      return this.blockUser(relationship);
+      return this.blockUserUpdate(userId, relationship);
     }
     else if (dto.type === RelationshipType.Friends) {
       return this.acceptRequest(relationship);
@@ -130,16 +131,43 @@ export class RelationshipsService {
     }
   }
 
-  private async blockUser(relationship: Relationship): Promise<Result<null>> {
-    if (relationship.type !== RelationshipType.Friends) {
+  public async blockUser(userId: string, blockedUserId: string): Promise<Result<null>> {
+    if (!blockedUserId || blockedUserId.length === 0) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Cannot block this user",
+        message: "Invalid id",
         data: null
-      }
+      };
     }
 
+    const rel = await this.relationshipRepository.findOne({where: [{senderId: userId, recipientId: blockedUserId}, {senderId: blockedUserId, recipientId: userId}]});
+    
+    if (rel) {
+      return this.blockUserUpdate(userId, rel);
+    }
+
+    const relationship = new Relationship();
+    relationship.senderId = userId;
+    relationship.recipientId = blockedUserId;
     relationship.type = RelationshipType.Blocked;
+
+    await this.relationshipRepository.save(relationship);
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      message: "User blocked successfully",
+      data: null
+    };
+  }
+
+  private async blockUserUpdate(userId: string, relationship: Relationship): Promise<Result<null>> {
+    relationship.type = RelationshipType.Blocked;
+
+    let blockedUserId: string = relationship.senderId === userId ? relationship.recipientId : relationship.senderId;
+
+    relationship.senderId = userId;
+    relationship.recipientId = blockedUserId;
+    
     await this.relationshipRepository.save(relationship);
 
     return {
@@ -169,7 +197,45 @@ export class RelationshipsService {
   }
 
 
-  remove(id: number) {
-    return `This action removes a #${id} relationship`;
+  async remove(userId: string, id: string): Promise<Result<null>> {
+    if (!id || id.length === 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Invalid id",
+        data: null
+      };
+    }
+    const relationship: Relationship = await this.relationshipRepository.findOneBy({ id: id });
+
+    if (!relationship || (relationship.senderId != userId && relationship.recipientId != userId)) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Invalid request",
+        data: null
+      }
+    }
+    if (relationship.type === RelationshipType.Blocked && relationship.senderId != userId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Invalid request",
+        data: null
+      };
+    }
+
+    try {
+      await this.relationshipRepository.delete({ id: id });
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "An error occurred when deleting relationship",
+        data: null
+      };
+    }
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      message: "Relationship deleted",
+      data: null
+    }
   }
 }

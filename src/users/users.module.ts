@@ -5,11 +5,12 @@ import { UserProfilesService } from "src/user-profiles/user-profiles.service";
 import { UserProfilesModule } from "src/user-profiles/user-profiles.module";
 import { HttpModule } from "@nestjs/axios";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { StorageModule } from "src/storage/storage.module";
 
 @Module({
   controllers: [UsersController],
   providers: [UsersService],
-  imports: [UserProfilesModule, HttpModule],
+  imports: [UserProfilesModule, HttpModule, StorageModule],
   exports: [UsersService]
 })
 export class UsersModule {}

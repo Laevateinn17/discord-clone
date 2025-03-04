@@ -9,12 +9,12 @@ export class Relationship {
     id: string
 
     @AutoMap()
-    @Column({name: 'user1_id'})
-    user1Id: string
+    @Column({name: 'sender_id'})
+    senderId: string
 
     @AutoMap()
-    @Column({name: 'user2_id'})
-    user2Id: string
+    @Column({name: 'recipient_id'})
+    recipientId: string
 
     @AutoMap()
     @Column({

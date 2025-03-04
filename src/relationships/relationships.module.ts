@@ -4,10 +4,11 @@ import { RelationshipsController } from './relationships.controller';
 import { UsersModule } from "src/users/users.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Relationship } from "./entities/relationship.entity";
+import { UserProfilesModule } from "src/user-profiles/user-profiles.module";
 
 @Module({
   controllers: [RelationshipsController],
   providers: [RelationshipsService],
-  imports: [UsersModule, TypeOrmModule.forFeature([Relationship])]
+  imports: [UsersModule, UserProfilesModule, TypeOrmModule.forFeature([Relationship])]
 })
 export class RelationshipsModule {}

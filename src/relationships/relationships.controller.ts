@@ -24,21 +24,27 @@ export class RelationshipsController {
     return res.status(status).json(result);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.relationshipsService.findOne(+id);
+  @Post('block/:userId')
+  async blockUser(@Headers('X-User-Id') userId: string, @Param('userId') blockedUserId: string, @Res() res: Response) {
+    const result = await this.relationshipsService.blockUser(userId, blockedUserId);
+    const { status } = result;
+
+    return res.status(status).json(result);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body(new ValidationPipe({ transform: true })) updateRelationshipDto: UpdateRelationshipDto, @Res() res: Response) {
-    const result = await this.relationshipsService.update(id, updateRelationshipDto);
+  async update(@Headers('X-User-Id') userId: string, @Param('id') id: string, @Body(new ValidationPipe({ transform: true })) updateRelationshipDto: UpdateRelationshipDto, @Res() res: Response) {
+    const result = await this.relationshipsService.update(userId, id, updateRelationshipDto);
     const { status } = result;
 
     return res.status(status).json(result);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.relationshipsService.remove(+id);
+  async remove(@Headers('X-User-Id') userId: string, @Param('id') id: string, @Res() res: Response) {
+    const result = await this.relationshipsService.remove(userId, id);
+    const { status } = result;
+
+    return res.status(status).json(result);
   }
 }

@@ -9,6 +9,10 @@ export class UserProfile {
     id: string
 
     @AutoMap()
+    @Column()
+    username: string;
+
+    @AutoMap()
     @Column({ name: 'display_name' })
     displayName: string;
 
@@ -30,7 +34,11 @@ export class UserProfile {
 
     @AutoMap()
     @Column({ nullable: true })
-    profilePictureURL?: string;
+    avatarURL?: string;
+
+    @AutoMap()
+    @Column({ nullable: true })
+    defaultAvatarURL: string;
 
     @AutoMap()
     @CreateDateColumn({ name: 'created_at' })
