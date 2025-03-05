@@ -4,6 +4,7 @@
     user-select: none;
     display: flex;
     background: var(--background-secondary);
+    max-height: 100vh;
 }
 
 
@@ -12,6 +13,7 @@
     min-width: 100%;
     min-height: 100%;
     transition: all 200ms ease;
+    max-height: 100%;
 }
 
 .main-content-hidden {
@@ -21,4 +23,10 @@
 .guild-sidebar-container {
     display: flex;
     flex-direction: column;
+    background-color: var(--background-tertiary);
+    border-left: 1px solid var(--border-container);
+}
+
+.content-container {
+    width: 100%;
 }

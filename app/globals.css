@@ -4,19 +4,33 @@
 
 :root {
   --background-primary: #313338;
-  --background-tertiary: #1e1f22;
-  --background-secondary: #2b2d31;
+  --background-tertiary: #28282d;
+  --background-secondary: oklab(0.303553 0.00292034 -0.0103036);
   --background-secondary-alt: #232428;
   --background-modifier-selected: rgba(78, 80, 88, 0.6);
   --background-modifier-hover: rgba(78, 80, 88, 0.3);
   --background-modifier-accent: rgba(78, 80, 88, 0.48);
+  --background-mod-strong: rgba(151, 151, 159, 0.24);
+  --background-mod-subtle: rgba(151, 151, 159, 0.08);
+  
+
+  --border-container: oklab(0.678888 0.00325716 -0.011175 / 0.121569);
+
   --foreground: #171717;
+
   --header-secondary: #c5c5d0;
+  --header-primary: oklab(0.999994 0.0000455678 0.0000200868);
   --input-background: #2a2a30;
   --input-border: #3d3d43;
-  --text-link: #8EA2FA;
+  --input-focused: #7bb0f5;
+  
   --primary: #5865f2;
-  --primary-button: #5865f2;
+
+  --text-link: #8EA2FA;
+  --text-brand: oklab(0.755592 0.00608414 -0.121619);
+  --text-positive: oklab(0.739922 -0.103905 0.0636804);
+  --text-danger: oklab(0.71871 0.140732 0.059904);
+  
   --container-background: #2e2e34;
   --container-background-hover: #3a3a41;
   --text-muted: #949ba4;
@@ -26,6 +40,14 @@
   --channel-default: oklab(0.686636 -0.00407365 -0.0149199);
   --interactive-normal: oklab(0.787067 -0.00258079 -0.0110391);
   --interactive-hover: oklab(0.89908 -0.00192907 -0.0048306);
+
+  --button-secondary: rgba(151, 151, 159, 0.12);
+  --button-secondary-hover: rgba(151, 151, 159, 0.2);
+  --button-primary: #5865f2;
+  --button-primary-hover: rgb(71, 84, 190);
+  --button-primary-selected: rgba(88, 101, 242, 0.16);
+  /* --button-primary-disabled: rgb(88, 101, 242) */
+  --status-danger: #f23f43;
 }
 
 @media (prefers-color-scheme: dark) {

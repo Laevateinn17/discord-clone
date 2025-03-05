@@ -11,7 +11,8 @@ import { isSet } from "util/types";
 
 interface HomeLayoutProps {
     headerContent: ReactNode
-    sidebarContent: ReactNode;
+    sidebarContent: ReactNode
+    mainContent: ReactNode
     children: ReactNode
 }
 
@@ -19,13 +20,13 @@ interface ContentContextType {
     setContent: Dispatch<SetStateAction<ReactNode>>
 }
 
-const ContentContext = createContext<ContentContextType>(null!)
+// const ContentContext = createContext<ContentContextType>(null!)
 
-export function useContentContext() {
-    return useContext(ContentContext);
-}
+// export function useContentContext() {
+//     return useContext(ContentContext);
+// }
 
-export default function HomeLayout({ headerContent, sidebarContent, children }: HomeLayoutProps) {
+export default function HomeLayout({ headerContent, sidebarContent, mainContent }: HomeLayoutProps) {
     const { user, getUser, setUser } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSettingOpen, setIsSettingOpen] = useState(false);
@@ -44,9 +45,6 @@ export default function HomeLayout({ headerContent, sidebarContent, children }: 
         getUser();
     }, [])
 
-    useEffect(() => {
-        console.log("building")
-    })
 
     useEffect(() => {
         // if (isSettingOpen) {
@@ -68,7 +66,7 @@ export default function HomeLayout({ headerContent, sidebarContent, children }: 
                 <Fragment>
                     <div className={`${styles["main-content"]} ${isSettingOpen ? styles["main-content-hidden"] : ""}`}>
                         <GuildListSidebar />
-                        <GuildContent headerContent={headerContent} sidebarContent={sidebarContent} setIsSettingOpen={setIsSettingOpen} />
+                        <GuildContent headerContent={headerContent} sidebarContent={sidebarContent} content={mainContent} setIsSettingOpen={setIsSettingOpen} />
                     </div>
                     <SettingsPage show={isSettingOpen} closeSettingsHandler={() => setIsSettingOpen(false)} />
                 </Fragment>
@@ -78,18 +76,18 @@ export default function HomeLayout({ headerContent, sidebarContent, children }: 
 }
 
 
-function GuildContent({ headerContent, sidebarContent, setIsSettingOpen }: { headerContent: ReactNode, sidebarContent: ReactNode, setIsSettingOpen: Dispatch<SetStateAction<boolean>> }) {
-    const [content, setContent] = useState<ReactNode>(<div></div>);
+function GuildContent({ headerContent, sidebarContent, content, setIsSettingOpen }: { headerContent: ReactNode, sidebarContent: ReactNode, content: ReactNode, setIsSettingOpen: Dispatch<SetStateAction<boolean>> }) {
+    // const [content, setContent] = useState<ReactNode>(<div></div>);
     const { user } = useAuth();
     return (
         <Fragment>
-            <ContentContext.Provider value={{ setContent }}>
-                <div className={`${styles["guild-sidebar-container"]} ${styles} `}>
+            {/* <ContentContext.Provider value={{ setContent }}> */}
+                <div className={`${styles["guild-sidebar-container"]}`}>
                     <GuildSidebar headerContent={headerContent} sidebarContent={sidebarContent} />
                     <UserArea user={user!} openSettingsHandler={() => setIsSettingOpen(true)} />
                 </div>
-            </ContentContext.Provider>
-            <div className="content-container">
+            {/* </ContentContext.Provider> */}
+            <div className={styles["content-container"]}>
                 {content}
             </div>
         </Fragment>

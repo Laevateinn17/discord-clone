@@ -8,7 +8,6 @@ export class RegisterError extends ErrorResponse {
     dateOfBirth?: string;
 
     constructor(obj: any) {
-        console.log("contrsucto")
         super();
         obj && Object.assign(this, obj);
     }

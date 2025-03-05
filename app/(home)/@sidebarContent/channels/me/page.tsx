@@ -1,9 +1,10 @@
 "use client"
-
 import FriendListPage from "@/app/(home)/channels/me/contents/friend-list-page";
 import NitroPage from "@/app/(home)/channels/me/contents/nitro-page";
 import ShopPage from "@/app/(home)/channels/me/contents/shop-page";
-import { useContentContext } from "@/app/(home)/layout";
+import Relationship from "@/interfaces/dto/relationship.dto";
+import { getRelationships } from "@/services/relationships/relationships.service";
+import { usePathname, useRouter } from "next/navigation";
 import { Fragment, ReactNode, useEffect, useState } from "react";
 import styled from "styled-components";
 
@@ -61,9 +62,13 @@ const IconContainer = styled.div`
 export default function MeSidebarContent() {
 
 
+    const pathname = usePathname();
+    const router = useRouter();
+
     const menuItems = [
         {
             id: "friends",
+            path: '/channels/me',
             menuItem:
                 <Fragment>
                     <IconContainer>
@@ -75,6 +80,7 @@ export default function MeSidebarContent() {
         },
         {
             id: "nitro",
+            path: '/store',
             menuItem:
                 <Fragment>
                     <IconContainer>
@@ -86,6 +92,7 @@ export default function MeSidebarContent() {
         },
         {
             id: "shop",
+            path: '/shop',
             menuItem:
                 <Fragment>
                     <IconContainer>
@@ -98,30 +105,24 @@ export default function MeSidebarContent() {
     ]
 
     const [activeContent, setActiveContent] = useState<string>(menuItems[0].id);
-    const { setContent } = useContentContext();
+    // const { setContent } = useContentContext();
 
-    useEffect(() => {
-        if (activeContent) {
-            setContent(menuItems.find(item => item.id == activeContent)!.content);
-        }
-    }, [activeContent])
+    // useEffect(() => {
+    //     if (activeContent) {
+    //         setContent(menuItems.find(item => item.id == activeContent)!.content);
+    //     }
+    // }, [activeContent])
     return (
         // <div className={styles["container"]}>
         <Container>
             <MenuContainer>
-                {menuItems.map((item) => {
+                {router && menuItems.map((item) => {
                     return (
-                        <MenuItem className={`${item.id === activeContent ? "menu-item-active" : ""}`} key={item.id} onClick={() => setActiveContent(item.id)}>
+                        <MenuItem key={item.id} className={`${pathname === item.path ? "menu-item-active" : ""}`} onClick={() => router.push(item.path)}>
                             {item.menuItem}
                         </MenuItem>
                     );
                 })}
-                {/* <div className={styles["menu-item"]}>
-                    <p>Nitro</p>
-                </div>
-                <div className={styles["menu-item"]}>
-                    <p>Shop</p>
-                </div> */}
             </MenuContainer>
         </Container>
     )

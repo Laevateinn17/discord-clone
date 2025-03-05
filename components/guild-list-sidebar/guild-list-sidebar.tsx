@@ -18,9 +18,6 @@ export default function GuildListSidebar() {
         );
     }
 
-    useEffect(() => {
-        console.log("rerender")
-    }, [])
     return (
         <div className={styles["guild-list-container"]}>
             <DMButton/>

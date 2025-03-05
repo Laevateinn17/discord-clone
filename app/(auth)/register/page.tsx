@@ -124,7 +124,6 @@ export default function Register() {
         setIsSubmitting(true)
         const response: Response<AuthResponse> = await register(dto);
         setIsSubmitting(false)
-        console.log(response)
         if (!response.success) {
             if (response.message instanceof ErrorResponse) {
                 const error = response.message as RegisterError;

@@ -18,8 +18,12 @@
     font-size: 16px;
     border-radius: 8px;
 
-    height: 44px;
+    min-height: 44px;
     min-width: 0;
+
+    &:focus {
+        outline: 1px solid var(--input-focused);
+    }
 }
 
 .text-helper {

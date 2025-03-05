@@ -8,7 +8,6 @@ const ENDPOINT = `${process.env.NEXT_PUBLIC_API_URL}/users`
 
 export async function getCurrentUserData(): Promise<Response<UserData>> {
     try {
-        console.log("fetching user data")
         const response = await api.get(ENDPOINT + '/current', {
             withCredentials: true
         });

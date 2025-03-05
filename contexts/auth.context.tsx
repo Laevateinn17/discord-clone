@@ -26,9 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<UserData | undefined | null>(null)
     const router = useRouter();
 
-    useEffect(() => {
-        console.log("user state ", user);
-    }, [user])
+    // useEffect(() => {
+    //     console.log("user state ", user);
+    // }, [user])
 
     async function getUser(): Promise<UserData | undefined | null> {
         if (!user) {
@@ -48,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (response) => response,
             async (error: any) => {
                 if (error.response.status === HttpStatusCode.Unauthorized && !error.config._retry) {
-                    console.log("refreshing token")
                     error.config._retry = true;
                     try {
                         const response = await refreshToken();
