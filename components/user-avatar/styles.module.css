@@ -1,11 +1,10 @@
 
 .pfp-container {
-  width: 32px;
-  height: 32px;
   border-radius: 25px;
   /* background-color: var(--background-primary); */
   align-self: center;
   overflow: hidden;
+  z-index: 0;
 }
 
 

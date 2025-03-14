@@ -5,9 +5,9 @@ import { api } from "@/services/api";
 import { refreshToken } from "@/services/auth/auth.service";
 import { getCurrentUserData, updateStatus } from "@/services/users/users.service";
 import axios, { AxiosInstance, HttpStatusCode } from "axios";
-import { responseCookiesToRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { useRouter } from "next/navigation";
 import { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client"
 
 export interface AuthContextType {
     user: UserData | undefined | null
@@ -34,6 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!user) {
             const response = await getCurrentUserData();
             if (response.success) {
+                const user = response.data!;
+                user.profile.isOnline = true;
                 setUser(response.data!);
                 return response.data;
             }
@@ -53,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         const response = await refreshToken();
                         if (!response.success) {
 
-                            router.push("/login");
+                            // router.push("/login");
                             return Promise.reject(error);
                         }
                         // const newToken = response.data?.accessToken;

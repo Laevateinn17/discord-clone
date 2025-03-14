@@ -1,5 +1,4 @@
 "use client"
-import SidebarContentContainer from "@/components/guild-sidebar/sidebar-content-container";
 import SidebarHeader from "@/components/guild-sidebar/sidebar-header";
 import UserAvatar from "@/components/user-avatar/user-avatar";
 import { DM_CHANNELS_CACHE } from "@/constants/cache";
@@ -174,6 +173,13 @@ export default function MeSidebarContent() {
         }
     ]
 
+    // const { setContent } = useContentContext();
+
+    // useEffect(() => {
+    //     if (activeContent) {
+    //         setContent(menuItems.find(item => item.id == activeContent)!.content);
+    //     }
+    // }, [activeContent])
     return (
         // <div className={styles["container"]}>
         <Fragment>
@@ -182,37 +188,35 @@ export default function MeSidebarContent() {
                     <p className={"text-[var(--text-muted)] bg-[var(--background-tertiary)] leading-[28px] text-sm py-[1px]] px-[6px] cursor-pointer font-medium"}>Find or start a conversation</p>
                 </div>
             </SidebarHeader>
-            <SidebarContentContainer>
-                <Container>
-                    <MenuContainer>
-                        {router && menuItems.map((item) => {
+            <Container>
+                <MenuContainer>
+                    {router && menuItems.map((item) => {
+                        return (
+                            <MenuItem key={item.id} className={`${pathname === item.path ? "menu-item-active" : ""}`} onClick={() => router.push(item.path)}>
+                                {item.menuItem}
+                            </MenuItem>
+                        );
+                    })}
+                </MenuContainer>
+                <Divider />
+                <DMListContainer>
+                    <DMListHeader>
+                        <p>Direct Messages</p>
+                    </DMListHeader>
+                    <DMListWrapper>
+                        {dmChannels?.map((channel) => {
+                            const recipient = channel.recipients[0];
                             return (
-                                <MenuItem key={item.id} className={`${pathname === item.path ? "menu-item-active" : ""}`} onClick={() => router.push(item.path)}>
-                                    {item.menuItem}
-                                </MenuItem>
-                            );
+                                <DMItemContainer className={`${pathname === `/channels/me/${channel.id}` ? "active" : ""}`} key={channel.id} onClick={() => router.push(`/channels/me/${channel.id}`)}>
+                                    <div className="mr-[12px]">
+                                        <UserAvatar user={recipient} showStatus={true} />
+                                    </div>
+                                    <DMRecipientName>{recipient.displayName}</DMRecipientName>
+                                </DMItemContainer>);
                         })}
-                    </MenuContainer>
-                    <Divider />
-                    <DMListContainer>
-                        <DMListHeader>
-                            <p>Direct Messages</p>
-                        </DMListHeader>
-                        <DMListWrapper>
-                            {dmChannels?.map((channel) => {
-                                const recipient = channel.recipients[0];
-                                return (
-                                    <DMItemContainer className={`${pathname === `/channels/me/${channel.id}` ? "active" : ""}`} key={channel.id} onClick={() => router.push(`/channels/me/${channel.id}`)}>
-                                        <div className="mr-[12px]">
-                                            <UserAvatar user={recipient} showStatus={true} />
-                                        </div>
-                                        <DMRecipientName>{recipient.displayName}</DMRecipientName>
-                                    </DMItemContainer>);
-                            })}
-                        </DMListWrapper>
-                    </DMListContainer>
-                </Container>
-            </SidebarContentContainer>
+                    </DMListWrapper>
+                </DMListContainer>
+            </Container>
         </Fragment>
     )
 }

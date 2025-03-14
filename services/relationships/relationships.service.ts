@@ -1,6 +1,6 @@
 import { AxiosError, HttpStatusCode } from "axios";
 import { api } from "../api";
-import Relationship from "@/interfaces/dto/relationship.dto";
+import Relationship from "@/interfaces/relationship";
 import { Response } from "@/interfaces/response";
 
 
@@ -32,29 +32,29 @@ export async function getRelationships(): Promise<Response<Relationship[]>> {
     })
 }
 
-export async function addFriend(username: string): Promise<Response<Relationship[]>> {
+export async function addFriend(username: string): Promise<Response<Relationship>> {
     try {
         const response = await api.post(ENDPOINT, { username }, {
             withCredentials: true
         });
         console.log(response.data)
-        if (response.status === HttpStatusCode.NoContent) {
-            return Response.Success<Relationship[]>({
+        if (response.status === HttpStatusCode.Ok) {
+            return Response.Success<Relationship>({
                 data: response.data.data,
                 message: response.data.message
             });
         }
-        return Response.Failed<Relationship[]>({
+        return Response.Failed<Relationship>({
             message: response.data.message
         });
     } catch (error) {
         if (error instanceof AxiosError)
-            return Response.Failed<Relationship[]>({
+            return Response.Failed<Relationship>({
                 message: error.response ? error.response.data.message as string : "An unknown Error occurred"
             });
     }
 
-    return Response.Failed<Relationship[]>({
+    return Response.Failed<Relationship>({
         message: "An unknown error occurred."
     })
 }

@@ -1,5 +1,6 @@
 .tooltip-container {
   position: absolute;
+  z-index: 999;
   text-wrap: nowrap;
   background-color: rgb(20, 20, 20);
   line-height: 1.2;
@@ -66,4 +67,15 @@
   left: 50%;
   transform: translateX(-50%);
   border-color: rgb(20, 20, 20) transparent transparent transparent;
+}
+
+.bottom::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  border-width: 5px;
+  border-style: solid;
+  left: 50%;
+  transform: translateX(-50%);
+  border-color: transparent transparent rgb(20, 20, 20) transparent;
 }

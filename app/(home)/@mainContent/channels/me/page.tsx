@@ -4,12 +4,23 @@ import PrimaryButton from "@/components/primary-button/primary-button";
 import styled from "styled-components";
 import { FormEvent, Fragment, ReactNode, useEffect, useState } from "react";
 import { UserStatus, UserStatusString } from "@/enums/user-status.enum";
-import Relationship from "@/interfaces/dto/relationship.dto";
-import { addFriend, getRelationships } from "@/services/relationships/relationships.service";
+import Relationship from "@/interfaces/relationship";
+import { acceptFriendRequest, addFriend, declineFriendRequest, getRelationships } from "@/services/relationships/relationships.service";
 import { RelationshipType } from "@/enums/relationship-type.enum";
 import TextInput from "@/components/text-input/text-input";
 import UserAvatar from "@/components/user-avatar/user-avatar";
 import RelationshipListItem from "../relationship-list-item";
+import { useAuth } from "@/contexts/auth.context";
+import Tooltip from "@/components/tooltip/tooltip";
+import { MdCheck, MdClose } from "react-icons/md";
+import { IoMdMore } from "react-icons/io";
+import { useCache } from "@/contexts/cache.context";
+import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RELATIONSHIPS_CACHE } from "@/constants/cache";
+import { useDMChannelsQuery } from "@/hooks/queries";
+import { useRouter } from "next/navigation";
+import { Channel } from "@/interfaces/channel";
+import { createDMChannel } from "@/services/channels/channels.service";
 
 const HeaderMain = styled.div`
     display: flex;
@@ -171,6 +182,58 @@ const ResponseText = styled.p`
     }
 `
 
+const ActionContainer = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 100%;
+`
+
+const ActionButtonContainer = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--background-secondary);
+    border-radius: 100%;
+
+    &.reject:hover {
+        color: var(--text-danger);
+    }
+
+    &.accept:hover {
+        color: var(--text-positive);
+    }
+`
+
+function ActionButton({ className, children, onClick, tooltipText }: { className?: string, children?: ReactNode, onClick?: () => any, tooltipText: string }) {
+    const [isHovering, setIsHovering] = useState(false)
+    return (
+        <ActionButtonContainer onClick={onClick} className={`relative ${className}`} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
+            {children}
+            <Tooltip position="top" show={isHovering} text={tooltipText} />
+        </ActionButtonContainer>
+    );
+}
+
+function MessageActionButton({ channel, relationship }: { channel?: Channel, relationship: Relationship }) {
+    const router = useRouter();
+    return (
+        <ActionButton
+            tooltipText="Message"
+            onClick={async () => {
+                if (!channel) {
+                     await createDMChannel(relationship.user.id);
+                     return;
+                }
+                router.push(`/channels/me/${channel.id}`)
+            }}>
+            <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22a10 10 0 1 0-8.45-4.64c.13.19.11.44-.04.61l-2.06 2.37A1 1 0 0 0 2.2 22H12Z"></path></svg>
+        </ActionButton>
+    );
+}
+
 interface TabItem<T> {
     id: string
     filter: (rel: Relationship) => boolean
@@ -180,32 +243,47 @@ interface TabItem<T> {
 }
 
 function AddFriendTab() {
-    const [isLoading, setIsLoading] = useState(false);
     const [usernameText, setUsernameText] = useState("");
     const [responseText, setResponseText] = useState<string | undefined>();
     const [responseSuccess, setResponseSuccess] = useState<boolean | undefined>();
+    const queryClient = useQueryClient();
+
+    const { mutate: addFriendMutation, isPending, } = useMutation(
+        {
+            mutationFn: (username: string) => addFriend(username),
+            onSuccess: (response) => {
+                if (!response.success) {
+                    setResponseText(response.message as string);
+                    setResponseSuccess(false);
+                    return;
+                }
+
+                setResponseText(undefined);
+                setResponseSuccess(true);
+                queryClient.setQueryData<Relationship[]>([RELATIONSHIPS_CACHE], (old) => {
+                    if (!old) {
+                        return [response.data!];
+                    }
+                    return [...old, response.data!];
+                })
+
+            },
+            onError: (err) => {
+                setResponseText("An error occurred while sending the friend request.");
+                setResponseSuccess(false);
+            }
+        }
+    );
 
     async function handleAddFriend(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
         setResponseText(undefined);
         setResponseSuccess(undefined);
-        setIsLoading(true);
-        const response = await addFriend(usernameText);
-        setIsLoading(false);
 
-        console.log(response)
-
-        if (!response.success) {
-            setResponseText(response.message as string);
-            setResponseSuccess(false);
-            return;
-        }
-
-        setResponseText(undefined);
-        setResponseSuccess(true);
-
+        addFriendMutation(usernameText);
     }
+
     return (
         <AddFriendTabContainer>
             <AddFriendHeaderText>Add Friend</AddFriendHeaderText>
@@ -222,7 +300,7 @@ function AddFriendTab() {
                         <PrimaryButton
                             className="h-[32px] items-center text-[14px]"
                             disabled={usernameText.length === 0}
-                            isLoading={isLoading}>
+                            isLoading={isPending}>
                             Send Friend Request
                         </PrimaryButton>
                     </AddFriendContainer>
@@ -240,13 +318,29 @@ function AddFriendTab() {
 
 export default function FriendListPage() {
     const [searchText, setSearchText] = useState('');
-    const [relationships, setRelationships] = useState<Relationship[]>([]);
     const [filteredRelationships, setFilteredRelationships] = useState<Relationship[]>([]);
+    const queryClient = useQueryClient();
+    const router = useRouter();
+
+    const { data: channels } = useDMChannelsQuery();
+    const { data: relationships } = useQuery({
+        staleTime: Infinity,
+        queryKey: [RELATIONSHIPS_CACHE],
+        queryFn: async () => {
+            const res = await getRelationships();
+            if (res.success) {
+                return res.data!;
+            }
+            return [];
+        }
+    })
+
+
 
     const filterButtons: TabItem<any>[] = [
         {
             id: "online",
-            filter: (rel: Relationship) => rel.user.status !== UserStatus.Online && rel.type === RelationshipType.Friends,
+            filter: (rel: Relationship) => rel.user.isOnline && rel.type === RelationshipType.Friends,
             show: () => true,
             type: FriendsFilterButton,
             button:
@@ -264,12 +358,14 @@ export default function FriendListPage() {
         {
             id: "pending",
             filter: (rel: Relationship) => rel.type === RelationshipType.Pending || rel.type === RelationshipType.PendingReceived,
-            show: () => relationships.filter(rel => rel.type === RelationshipType.Pending || rel.type === RelationshipType.PendingReceived).length > 0,
+            show: () => relationships !== undefined && relationships!.filter(rel => rel.type === RelationshipType.Pending || rel.type === RelationshipType.PendingReceived).length > 0,
             type: FriendsFilterButton,
             button: (
                 <div className="flex items-center">
                     <p>Pending</p>
-                    <FriendRequestCountText>{relationships.filter(rel => rel.type === RelationshipType.Pending || rel.type === RelationshipType.PendingReceived).length}</FriendRequestCountText>
+                    {relationships && relationships!.filter(rel => rel.type === RelationshipType.PendingReceived).length > 0 &&
+                        <FriendRequestCountText>{relationships!.filter(rel => rel.type === RelationshipType.PendingReceived).length}</FriendRequestCountText>
+                    }
                 </div>
             )
         },
@@ -278,48 +374,72 @@ export default function FriendListPage() {
             filter: (rel: Relationship) => false,
             show: () => true,
             type: PrimaryButton,
-            button: <p>Add Friend</p>
+            button: <p className="whitespace-nowrap">Add Friend</p>
         }
     ]
 
-    const [activeTab, setActiveFilter] = useState<TabItem<any>>(filterButtons[0]);
+    const [activeTab, setActiveTab] = useState<TabItem<any>>(filterButtons[0]);
+    const { mutate: declineRequestMutation } = useMutation(
+        {
+            mutationFn: (relationship: Relationship) => handleDecline(relationship)
+        }
+    );
 
+    const { mutate: acceptRequestMutation } = useMutation(
+        {
+            mutationFn: (relationship: Relationship) => acceptFriendRequest(relationship.id)
+        }
+    );
 
-    useEffect(() => {
-        getRelationships().then(rel => {
-            if (rel.success) {
-                setRelationships(rel.data!);
+    async function handleAccept(relationship: Relationship) {
+        const response = await acceptFriendRequest(relationship.id);
+
+        if (!response.success) return;
+        queryClient.setQueryData<Relationship[]>([RELATIONSHIPS_CACHE], (old) => {
+            if (!old) {
+                return [relationship];
             }
+            return old.map((rel) =>
+                rel.id === relationship.id ? { ...rel, type: RelationshipType.Friends } : rel
+            );
         })
-    }, [])
+    }
+
+    async function handleDecline(relationship: Relationship) {
+        const response = await declineFriendRequest(relationship.id);
+
+        if (!response.success) return; //might wanna handle this error.
+
+        queryClient.setQueryData<Relationship[]>([RELATIONSHIPS_CACHE], (old) => {
+            if (!old) {
+                return [];
+            }
+            return old.filter(rel => rel.id !== relationship.id);
+        })
+
+
+    }
+
 
     useEffect(() => {
+        if (!relationships) return;
         let rels = relationships;
 
         if (activeTab) {
             rels = rels.filter(activeTab.filter);
         }
+        rels = rels.filter(rel => rel.user.displayName.includes(searchText));
+        setFilteredRelationships(rels);
 
-        setFilteredRelationships(rels.filter(rel => rel.user.displayName.includes(searchText)));
-    }, [activeTab, searchText])
+        if (activeTab.id === 'pending' && rels.length === 0) {
+            setActiveTab(filterButtons.find(f => f.id === 'all') || filterButtons[0]);
+        }
+
+    }, [activeTab, searchText, relationships])
 
     useEffect(() => {
-        document.title = "Discord | Friends";
+        document.title = "Viscord | Friends";
     }, [])
-
-    // return (
-    //     <div className="h-full flex flex-col">
-    //         <div className="h-[200px] bg-blue-100 ">item</div>
-    //         <div className="flex flex-col min-h-0">
-    //             <div className="">item</div>
-    //             <div className="overflow-scroll">
-    //                 {(Array.from(Array(20).keys()).map(Number.call, Number)).map((item, index) => {
-    //                     return <p className="py-5">{index}</p>
-    //                 })}
-    //             </div>
-    //         </div>
-    //     </div>
-    // );
 
     return (
         <div className="h-full flex flex-col">
@@ -341,7 +461,7 @@ export default function FriendListPage() {
                             filterButtons.map((filterButton) => {
                                 if (!filterButton.show()) return;
                                 return (
-                                    <filterButton.type key={filterButton.id} onClick={() => setActiveFilter(filterButton)} className={`mx-[8px] ${activeTab.id === filterButton.id ? "active" : ""}`}>
+                                    <filterButton.type key={filterButton.id} onClick={() => setActiveTab(filterButton)} className={`mx-[8px] ${activeTab.id === filterButton.id ? "active" : ""}`}>
                                         {filterButton.button}
                                     </filterButton.type>
                                 );
@@ -370,7 +490,27 @@ export default function FriendListPage() {
                                             <FilterTypeContainer>{`Online — ${filteredRelationships.length}`}</FilterTypeContainer>
                                             {filteredRelationships.map((rel) => {
                                                 return (
-                                                    <RelationshipListItem relationship={rel} key={rel.id} />);
+                                                    <RelationshipListItem relationship={rel} key={rel.id}>
+                                                        {rel.type === RelationshipType.Pending &&
+                                                            <ActionContainer>
+                                                                <ActionButton onClick={() => acceptRequestMutation(rel)} className="accept" tooltipText="Accept">
+                                                                    <MdCheck size={20} />
+                                                                </ActionButton>
+                                                                <ActionButton onClick={() => declineRequestMutation(rel)} className="reject" tooltipText="Decline">
+                                                                    <MdClose size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+                                                        {rel.type === RelationshipType.Friends &&
+                                                            <ActionContainer>
+                                                                <MessageActionButton channel={channels ? channels.find(ch => ch.recipients[0].id === rel.user.id) : undefined} />
+                                                                <ActionButton tooltipText="More">
+                                                                    <IoMdMore size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+
+                                                    </RelationshipListItem>);
                                             })}
                                         </Fragment>
                                     )}
@@ -380,8 +520,27 @@ export default function FriendListPage() {
                                             <FilterTypeContainer>{`All friends — ${filteredRelationships.length}`}</FilterTypeContainer>
                                             {filteredRelationships.map((rel, index) => {
                                                 return (
-                                                    <RelationshipListItem relationship={rel} key={rel.id + index} />
-                                                );
+                                                    <RelationshipListItem relationship={rel} key={rel.id}>
+                                                        {rel.type === RelationshipType.Pending &&
+                                                            <ActionContainer>
+                                                                <ActionButton onClick={() => handleAccept(rel)} className="accept" tooltipText="Accept">
+                                                                    <MdCheck size={20} />
+                                                                </ActionButton>
+                                                                <ActionButton onClick={() => handleDecline(rel)} className="reject" tooltipText="Decline">
+                                                                    <MdClose size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+                                                        {rel.type === RelationshipType.Friends &&
+                                                            <ActionContainer>
+                                                                <MessageActionButton relationship={rel} channel={channels ? channels.find(ch => ch.recipients[0].id === rel.user.id) : undefined} />
+                                                                <ActionButton tooltipText="More">
+                                                                    <IoMdMore size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+
+                                                    </RelationshipListItem>);
                                             })}
                                         </Fragment>
                                     )}
@@ -392,13 +551,53 @@ export default function FriendListPage() {
                                                 <FilterTypeContainer>{`Sent — ${filteredRelationships.length}`}</FilterTypeContainer>}
                                             {filteredRelationships.filter(rel => rel.type === RelationshipType.Pending).map((rel) => {
                                                 return (
-                                                    <RelationshipListItem relationship={rel} key={rel.id} />);
+                                                    <RelationshipListItem relationship={rel} key={rel.id}>
+                                                        {rel.type === RelationshipType.Pending &&
+                                                            <ActionContainer>
+                                                                <ActionButton onClick={() => handleAccept(rel)} className="accept" tooltipText="Accept">
+                                                                    <MdCheck size={20} />
+                                                                </ActionButton>
+                                                                <ActionButton onClick={() => handleDecline(rel)} className="reject" tooltipText="Decline">
+                                                                    <MdClose size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+                                                        {rel.type === RelationshipType.Friends &&
+                                                            <ActionContainer>
+                                                                <MessageActionButton channel={channels ? channels.find(ch => ch.recipients[0].id === rel.user.id) : undefined} />
+                                                                <ActionButton tooltipText="More">
+                                                                    <IoMdMore size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+
+                                                    </RelationshipListItem>);
                                             })}
                                             {filteredRelationships.filter(rel => rel.type === RelationshipType.PendingReceived).length > 0 &&
                                                 <FilterTypeContainer>{`Received — ${filteredRelationships.length}`}</FilterTypeContainer>}
                                             {filteredRelationships.filter(rel => rel.type === RelationshipType.PendingReceived).map((rel) => {
                                                 return (
-                                                    <RelationshipListItem relationship={rel} key={rel.id} />);
+                                                    <RelationshipListItem relationship={rel} key={rel.id}>
+                                                        {rel.type === RelationshipType.PendingReceived &&
+                                                            <ActionContainer>
+                                                                <ActionButton onClick={() => handleAccept(rel)} className="accept" tooltipText="Accept">
+                                                                    <MdCheck size={20} />
+                                                                </ActionButton>
+                                                                <ActionButton onClick={() => handleDecline(rel)} className="reject" tooltipText="Decline">
+                                                                    <MdClose size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+                                                        {rel.type === RelationshipType.Friends &&
+                                                            <ActionContainer>
+                                                                <MessageActionButton channel={channels ? channels.find(ch => ch.recipients[0].id === rel.user.id) : undefined} />
+                                                                <ActionButton tooltipText="More">
+                                                                    <IoMdMore size={20} />
+                                                                </ActionButton>
+                                                            </ActionContainer>
+                                                        }
+
+                                                    </RelationshipListItem>);
                                             })}
 
                                         </Fragment>
