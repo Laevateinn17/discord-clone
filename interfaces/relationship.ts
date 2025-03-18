@@ -1,5 +1,5 @@
 import { RelationshipType } from "@/enums/relationship-type.enum"
-import { UserProfile } from "../user-profile"
+import { UserProfile } from "./user-profile"
 
 export default interface Relationship {
     id: string

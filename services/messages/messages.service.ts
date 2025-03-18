@@ -1,0 +1,73 @@
+import { AxiosError, HttpStatusCode } from "axios";
+import { api } from "../api";
+import { Message } from "@/interfaces/message";
+import { Response } from "@/interfaces/response";
+import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
+
+const ENDPOINT = process.env.NEXT_PUBLIC_API_URL;
+export async function getMessages(channelId: string): Promise<Response<Message[]>> {
+    try {
+        const response = await api.get(`${ENDPOINT}/channels/${channelId}/messages`, {
+            withCredentials: true
+        });
+        console.log(response)
+        if (response.status === HttpStatusCode.Ok) {
+            return Response.Success<Message[]>({
+                data: response.data.data,
+                message: response.data.message
+            });
+        }
+        return Response.Failed<Message[]>({
+            message: response.data.message
+        });
+    } catch (error) {
+        if (error instanceof AxiosError)
+            return Response.Failed<Message[]>({
+                message: error.response ? error.response.data.message as string : "An unknown Error occurred"
+            });
+    }
+
+    return Response.Failed<Message[]>({
+        message: "An unknown error occurred."
+    })
+}
+
+export async function sendMessage(dto: CreateMessageDto): Promise<Response<Message>> {
+    const formData = new FormData()
+    formData.append('content', dto.content);
+    formData.append('channelId', dto.channelId);
+    formData.append('createdAt', dto.createdAt.toISOString());
+
+    for (const att of dto.attachments) {
+        formData.append('files', att);
+    }
+
+    for (const mention of dto.mentions) {
+        formData.append('mentions', mention);
+    }
+
+    try {
+        const response = await api.post(`${ENDPOINT}/messages`, formData, {
+            withCredentials: true
+        });
+        console.log(response)
+        if (response.status === HttpStatusCode.Created) {
+            return Response.Success<Message>({
+                data: response.data.data,
+                message: response.data.message
+            });
+        }
+        return Response.Failed<Message>({
+            message: response.data.message
+        });
+    } catch (error) {
+        if (error instanceof AxiosError)
+            return Response.Failed<Message>({
+                message: error.response ? error.response.data.message as string : "An unknown Error occurred"
+            });
+    }
+
+    return Response.Failed<Message>({
+        message: "An unknown error occurred."
+    })
+}

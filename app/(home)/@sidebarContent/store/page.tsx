@@ -1,8 +1,5 @@
 "use client"
-import FriendListPage from "@/app/(home)/channels/me/contents/friend-list-page";
-import NitroPage from "@/app/(home)/channels/me/contents/nitro-page";
-import ShopPage from "@/app/(home)/channels/me/contents/shop-page";
-import Relationship from "@/interfaces/dto/relationship.dto";
+import Relationship from "@/interfaces/relationship";
 import { getRelationships } from "@/services/relationships/relationships.service";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, ReactNode, useEffect, useState } from "react";
@@ -76,7 +73,6 @@ export default function MeSidebarContent() {
                     </IconContainer>
                     <p>Friends</p>
                 </Fragment>,
-            content: <FriendListPage />
         },
         {
             id: "nitro",
@@ -88,11 +84,10 @@ export default function MeSidebarContent() {
                     </IconContainer>
                     <p>Nitro</p>
                 </Fragment>,
-            content: <NitroPage />
         },
         {
             id: "shop",
-            path: '/shop',
+            path: '/haha',
             menuItem:
                 <Fragment>
                     <IconContainer>
@@ -100,7 +95,6 @@ export default function MeSidebarContent() {
                     </IconContainer>
                     <p>Shop</p>
                 </Fragment>,
-            content: <ShopPage />
         }
     ]
 

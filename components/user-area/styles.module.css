@@ -16,6 +16,7 @@
   cursor: pointer;
   flex-grow: 1;
   margin-right: 8px;
+  overflow: hidden;
 
   cursor: pointer;
 

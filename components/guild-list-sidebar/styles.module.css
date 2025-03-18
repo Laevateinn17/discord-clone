@@ -5,6 +5,7 @@
     background: var(--background-tertiary);
     padding-top: 12px;
     align-items: center;
+    gap: 8px;
 }
 
 .horizontal-divider {

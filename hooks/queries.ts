@@ -1,0 +1,96 @@
+import { DM_CHANNELS_CACHE, GUILDS_CACHE, MESSAGES_CACHE, RELATIONSHIPS_CACHE } from "@/constants/cache";
+import { Guild } from "@/interfaces/guild";
+import { getDMChannels } from "@/services/channels/channels.service";
+import { getGuildDetail, getGuilds } from "@/services/guild/guild.service";
+import { getMessages } from "@/services/messages/messages.service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Message} from "@/interfaces/message"
+import { getRelationships } from "@/services/relationships/relationships.service";
+
+export function useDMChannelsQuery() {
+    return useQuery({
+        staleTime: Infinity,
+        queryKey: [DM_CHANNELS_CACHE],
+        queryFn: async () => {
+            const res = await getDMChannels();
+            if (res.success) {
+                return res.data!;
+            }
+
+            return [];
+        }
+    })
+}
+
+export function useGuildsQuery() {
+    return useQuery({
+        staleTime: Infinity,
+        queryKey: [GUILDS_CACHE],
+        queryFn: async () => {
+            const res = await getGuilds();
+            console.log(res)
+            if (res.success) {
+                return res.data!;
+            }
+
+            return [];
+        }
+    })
+}
+
+export function useGuildDetailQuery(guildId: string) {
+    const queryClient = useQueryClient();
+    return useQuery({
+        staleTime: Infinity,
+        queryKey: [GUILDS_CACHE, guildId],
+        queryFn: async () => {
+            console.log(`Guild ${guildId} data is stale, refecthing...`);
+            const res = await getGuildDetail(guildId);
+
+            if (!res.success) {
+                throw Error();
+            }
+            queryClient.setQueryData<Guild[]>([GUILDS_CACHE], (old) => {
+                if (!old) {
+                    return [res.data!];
+                }
+
+                return old.map(g => g.id === res.data!.id ? res.data! : g);
+            })
+
+            return res.data!;
+        }
+    })
+}
+
+export function useMessagesQuery(channelId: string) {
+    return useQuery({
+        staleTime: Infinity,
+        queryKey: [MESSAGES_CACHE, channelId],
+        queryFn: async () => {
+            console.log(`Channel ${channelId} messages is stale, refecthing...`);
+            const res = await getMessages(channelId);
+            if (!res.success) {
+                throw Error();
+            }
+
+            const data = res.data!.map(m => ({...m, createdAt: new Date(m.createdAt), updatedAt: new Date(m.updatedAt)}) as Message)
+
+            return data.sort((a, b) => a.createdAt > b.createdAt ? 1 : a.createdAt < b.createdAt ? -1 : 0);
+        }
+    })
+}
+
+export function useRelationshipsQuery() {
+    return useQuery({
+        staleTime: Infinity,
+        queryKey: [RELATIONSHIPS_CACHE],
+        queryFn: async () => {
+            const res = await getRelationships();
+            if (!res.success) {
+                throw Error();
+            }
+            return res.data!;
+        }
+    })
+}

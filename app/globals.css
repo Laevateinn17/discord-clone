@@ -12,9 +12,13 @@
   --background-modifier-accent: rgba(78, 80, 88, 0.48);
   --background-mod-strong: rgba(151, 151, 159, 0.24);
   --background-mod-subtle: rgba(151, 151, 159, 0.08);
-  
+  --background-mod-faint: rgba(151, 151, 159, 0.04);
+  --modal-background: oklab(0.339495 0.00330827 -0.0116803);
 
   --border-container: oklab(0.678888 0.00325716 -0.011175 / 0.121569);
+  --border-faint: oklab(0.678888 0.00325716 -0.011175 / 0.0392157);
+  --border-subtle: oklab(0.678888 0.00325716 -0.011175 / 0.121569);
+  --placeholder: oklab(0.541247 0.00383598 -0.0133453);
 
   --foreground: #171717;
 
@@ -23,6 +27,7 @@
   --input-background: #2a2a30;
   --input-border: #3d3d43;
   --input-focused: #7bb0f5;
+  --chat-background-default: oklab(0.323409 0.00288205 -0.0101295);
   
   --primary: #5865f2;
 
@@ -30,24 +35,36 @@
   --text-brand: oklab(0.755592 0.00608414 -0.121619);
   --text-positive: oklab(0.739922 -0.103905 0.0636804);
   --text-danger: oklab(0.71871 0.140732 0.059904);
+  --text-default: oklab(0.883042 0.00118408 -0.00389016);
+  --text-primary: oklab(0.999994 0.0000455678 0.0000200868);
+  --text-muted: oklab(0.75264 0.00240251 -0.00813961);
+
+  --icon-secondary: oklab(0.834228 0.00196606 -0.00659835);
+  --icon-tertiary: oklab(0.75264 0.00240251 -0.00813961);
+
   
   --container-background: #2e2e34;
   --container-background-hover: #3a3a41;
-  --text-muted: #949ba4;
   --checkbox-background-checked: #5865f2;
   --header-modifier-accent: #35363c;
   --icon: #b5bac1;
   --channel-default: oklab(0.686636 -0.00407365 -0.0149199);
+
   --interactive-normal: oklab(0.787067 -0.00258079 -0.0110391);
   --interactive-hover: oklab(0.89908 -0.00192907 -0.0048306);
+  
+  --divider-subtle: oklab(0.999994 0.0000455678 0.0000200868 / 0.08);
 
   --button-secondary: rgba(151, 151, 159, 0.12);
   --button-secondary-hover: rgba(151, 151, 159, 0.2);
+  --button-secondary-text: rgb(235, 235, 237);
   --button-primary: #5865f2;
   --button-primary-hover: rgb(71, 84, 190);
   --button-primary-selected: rgba(88, 101, 242, 0.16);
   /* --button-primary-disabled: rgb(88, 101, 242) */
   --status-danger: #f23f43;
+
+  --channels-default: oklab(0.75264 0.00240251 -0.00813961);
 }
 
 @media (prefers-color-scheme: dark) {
