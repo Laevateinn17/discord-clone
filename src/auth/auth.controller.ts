@@ -20,14 +20,14 @@ export class AuthController {
       res.cookie('refreshToken', result.data.refreshToken, {
         httpOnly: true,
         sameSite: "lax",
-        path: '/',
+        path: '/api/auth/refresh-token,/api/auth/logout',
         maxAge: 365 * 24 * 60 * 60 * 1000
       });
       res.cookie('accessToken', result.data.accessToken, {
         httpOnly: true,
         sameSite: "lax",
         path: '/',
-        maxAge: 5 * 60 * 1000 // 5 mins
+        maxAge: 10 * 60 * 1000 // 5 mins
       });
       delete result.data.accessToken;
       delete result.data.refreshToken;
@@ -45,14 +45,14 @@ export class AuthController {
       res.cookie('refreshToken', result.data.refreshToken, {
         httpOnly: true,
         sameSite: "lax",
-        path: '/api/auth/refresh-token',
+        path: '/api/auth/refresh-token,/api/auth/logout',
         maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
       });
       res.cookie('accessToken', result.data.accessToken, {
         httpOnly: true,
         sameSite: "lax",
         path: '/',
-        maxAge: 5 * 60 * 1000 // 5 mins
+        maxAge: 10 * 60 * 1000 // 5 mins
       });
       delete result.data.accessToken;
       delete result.data.refreshToken;
@@ -61,8 +61,6 @@ export class AuthController {
 
     return res.status(status).json(result);
   }
-
-  @UseGuards(AuthGuard)
 
   @UseGuards(AuthGuard)
   @Patch('update-password')
@@ -94,12 +92,12 @@ export class AuthController {
     const id = request['userId'];
     const result = await this.authService.refreshToken(id);
     const { status } = result;
-    if (result.status == HttpStatus.OK) {
+    if (result.status === HttpStatus.OK) {
       res.cookie('accessToken', result.data, {
         httpOnly: true,
         sameSite: "lax",
         path: '/',
-        maxAge: 5 * 60 * 1000 // 5 mins
+        maxAge: 10 * 60 * 1000 // 5 mins
       });
       return res.status(status).json(result);
     }
@@ -114,18 +112,6 @@ export class AuthController {
   async logout(@Req() req: Request, @Res() res: Response) {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
-    // res.cookie('accessToken', "", {
-    //   httpOnly: true,
-    //   sameSite: "lax",
-    //   path: '/',
-    //   maxAge: 0
-    // })
-    // res.cookie('refreshToken', "", {
-    //   httpOnly: true,
-    //   sameSite: "lax",
-    //   path: '/refresh-token',
-    //   maxAge: 0
-    // })
 
     return res.status(HttpStatus.OK).send();
   }

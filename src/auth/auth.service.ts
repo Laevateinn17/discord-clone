@@ -11,7 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UpdatePasswordDTO } from './dto/update-password.dto';
 import { createMap } from '@automapper/core';
 import { mapper } from 'src/mappings/mappers';
-import { ClientProxy, ClientProxyFactory, Transport } from '@nestjs/microservices';
+import { ClientOptions, ClientProxy, ClientProxyFactory, Transport } from '@nestjs/microservices';
 import { UserIdentityResponseDTO } from "./dto/user-identity-response.dto";
 import { ErrorResponse } from "./errors/error-response";
 import { RegisterError } from "./errors/register-error";
@@ -23,7 +23,7 @@ import { firstValueFrom } from "rxjs";
 
 @Injectable()
 export class AuthService {
-
+  private gatewayMQ: ClientProxy
   constructor(
     @InjectRepository(UserIdentity) private readonly userRepository: Repository<UserIdentity>,
     private readonly jwtService: JwtService,
@@ -141,7 +141,7 @@ export class AuthService {
       };
     }
 
-    const user = await this.userRepository.findOne({ where: { email: loginDTO.identifier } });
+    const user = await this.userRepository.findOne({ where: { email: loginDTO.identifier} });
 
     if (!user) {
       return {
