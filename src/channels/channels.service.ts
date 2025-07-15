@@ -17,15 +17,29 @@ import { ChannelType } from "./enums/channel-type.enum";
 import { response } from "express";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { UserProfile } from "aws-sdk/clients/opsworks";
+import { ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
+import { GATEWAY_QUEUE, USER_TYPING_EVENT } from "src/constants/events";
+import { Payload } from "src/interfaces/payload.dto";
+import { UserTypingDTO } from "src/interfaces/user-typing.dto";
 
 @Injectable()
 export class ChannelsService {
+  private gatewayMQ: ClientProxy;
 
   constructor(
     private readonly usersService: HttpService,
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
-  ) { }
+  ) {
+    this.gatewayMQ = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
+        queue: GATEWAY_QUEUE,
+        queueOptions: { durable: true }
+      }
+    });
+  }
 
   async create(dto: CreateChannelDTO): Promise<Result<ChannelResponseDTO>> {
     if (!dto.guildId || dto.guildId.length === 0) {
@@ -65,13 +79,13 @@ export class ChannelsService {
       };
     }
 
-    const existingChannel = await this.channelsRepository
+    let existingChannel = await this.channelsRepository
       .createQueryBuilder('channel')
       .innerJoin('channel.recipients', 'channel_recipient')
       .where('channel_recipient.user_id IN (:...recipients) AND channel.type = :channelType', { recipients: [userId, dto.recipientId], channelType: ChannelType.DM })
+      .having('COUNT(DISTINCT channel_recipient.user_id) = 2')
+      .groupBy('channel.id')
       .select('channel.id').getOne();
-
-    console.log(existingChannel);
 
     if (existingChannel) {
       return {
@@ -152,26 +166,14 @@ export class ChannelsService {
     const dto: ChannelResponseDTO[] = channels.map(channel => mapper.map(channel, Channel, ChannelResponseDTO));
 
     for (const channel of dto) {
-      const recipient = await this.channelRecipientRepository.findOneBy({ channelId: channel.id, userId: Not(userId) });
-      let recipientResponse: AxiosResponse<UserProfileResponseDTO, any>;
-      try {
-        const url = `http://${process.env.USER_SERVICE_HOST}:${process.env.USER_SERVICE_PORT}/user-profiles/${recipient.userId}`;
-        recipientResponse = (await firstValueFrom(this.usersService.get(url))).data;
-        if (recipientResponse.status !== HttpStatus.OK) {
-          return {
-            status: HttpStatus.BAD_REQUEST,
-            data: null,
-            message: "Failed retrieving recipient data"
-          };
+      const recipients = await this.channelRecipientRepository.findBy({ channelId: channel.id });
+      channel.recipients = await Promise.all(recipients.map(async r => {
+        const response = await this.getRecipientDetail(r.userId);
+        if (response.status !== HttpStatus.OK) {
+          return undefined;
         }
-      } catch (error) {
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          data: null,
-          message: "Failed retrieving recipient data"
-        };
-      }
-      channel.recipients = [recipientResponse.data];
+        return response.data!;
+      }));
     }
 
     return {
@@ -197,11 +199,103 @@ export class ChannelsService {
       .getMany();
 
     const data = channels.map(ch => mapper.map(ch, Channel, ChannelResponseDTO));
-    console.log(data);
+
     return {
       status: HttpStatus.OK,
       data: data,
       message: 'Channels retrieved successfully'
+    };
+  }
+
+  async getChannelDetail(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
+    if (!channelId || channelId.length === 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Invalid channel id'
+      };
+    }
+
+    const channel = await this.channelsRepository
+      .createQueryBuilder('channel')
+      .leftJoinAndSelect('channel.recipients', 'recipients')
+      .where('channel.id = :channelId', { channelId: channelId })
+      .getOne();
+
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel not found'
+      };
+    }
+
+    if (!channel.recipients.find(r => r.userId === userId)) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User is not part of this channel'
+      };
+    }
+
+    const data = mapper.map(channel, Channel, ChannelResponseDTO);
+    data.recipients = await Promise.all(channel.recipients.map(async r => (await this.getRecipientDetail(r.userId)).data));
+
+    return {
+      status: HttpStatus.OK,
+      data: data,
+      message: 'Channel retrieved successfully'
+    };
+  }
+
+  private async getRecipientDetail(userId: string): Promise<Result<UserProfileResponseDTO>> {
+    let recipientResponse: AxiosResponse<UserProfileResponseDTO, any>;
+    try {
+      const url = `http://${process.env.USER_SERVICE_HOST}:${process.env.USER_SERVICE_PORT}/user-profiles/${userId}`;
+      recipientResponse = (await firstValueFrom(this.usersService.get(url))).data;
+      if (recipientResponse.status !== HttpStatus.OK) {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          data: null,
+          message: 'Failed retrieving recipient data'
+        };
+      }
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Failed retrieving recipient data'
+      };
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: recipientResponse.data,
+      message: 'Recipient data retrieved successfully'
+    }
+  }
+
+  async broadcastUserTyping(userId: string, channelId: string): Promise<Result<null>> {
+    const recipients = await this.channelRecipientRepository.findBy({ channelId: channelId });
+    const dto: UserTypingDTO = {
+      userId: userId,
+      channelId: channelId
+    };
+
+    try {
+      this.gatewayMQ.emit(USER_TYPING_EVENT, { recipients: recipients.filter(r => r.userId != userId).map(r => r.userId), data: dto } as Payload<UserTypingDTO>)
+    } catch (error) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while broadcasting typing status'
+      };
+    }
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      data: null,
+      message: ''
     };
   }
 

@@ -47,7 +47,8 @@ export class GuildsService {
     try {
       await this.guildsRepository.save(guild);
       //create default guild template
-      await this.guildMembersRepository.save({ guild: guild, userId: userId });
+      const owner = await this.guildMembersRepository.save({ guild: guild, userId: userId });
+      guild.owner = owner;
       // create channel categories and channels
 
       if (dto.iconImage) {
@@ -130,8 +131,6 @@ export class GuildsService {
       .leftJoinAndSelect('guild.channels', 'channel')
       .leftJoinAndSelect('channel.parent', 'parentChannel')
       .where('guild.id = :guildId', { guildId: guildId }).getOne();
-
-    console.log(guild);
 
     if (!guild.members.find(m => m.userId === userId)) {
       return {

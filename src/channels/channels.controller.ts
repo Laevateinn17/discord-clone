@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, ValidationPipe, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, ValidationPipe, Res, HttpStatus } from '@nestjs/common';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDTO } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -6,7 +6,7 @@ import { CreateDMChannelDTO } from "./dto/create-dm-channel.dto";
 import { Response } from "express";
 
 @Controller('guilds/:guildId/channels')
-export class ChannelsController {
+export class GuildChannelsController {
   constructor(private readonly channelsService: ChannelsService) { }
 
   @Post()
@@ -50,6 +50,47 @@ export class DMChannelsController {
     const { status } = result;
 
     return res.status(status).json(result);
+  }
+
+  @Get(':channelId')
+  async getDMChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
+    if (!userId || userId.length === 0) {
+      return res.status(HttpStatus.UNAUTHORIZED).send();
+    }
+
+    const result = await this.channelsService.getChannelDetail(userId, channelId);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+}
+
+@Controller('channels')
+export class ChannelsController {
+  constructor(private readonly channelsService: ChannelsService) { }
+
+  @Get(':channelId')
+  async getDMChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
+    if (!userId || userId.length === 0) {
+      return res.status(HttpStatus.UNAUTHORIZED).send();
+    }
+
+    const result = await this.channelsService.getChannelDetail(userId, channelId);
+    const { status } = result;
+    return res.status(status).json(result);
+  }
+
+  @Post(':channelId/typing')
+  async broadcastUserTyping(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response){
+    if (!userId || userId.length === 0) {
+      return res.status(HttpStatus.UNAUTHORIZED).send();
+    }
+
+    const result = await this.channelsService.broadcastUserTyping(userId, channelId);
+    const { status } = result;
+    return res.status(status).json(result);
 
   }
+
+
 }

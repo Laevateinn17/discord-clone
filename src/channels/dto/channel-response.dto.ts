@@ -27,7 +27,6 @@ export class ChannelResponseDTO {
     @AutoMap()
     parent?: ChannelResponseDTO;
 
-
     @AutoMap()
     guild?: Guild;
 

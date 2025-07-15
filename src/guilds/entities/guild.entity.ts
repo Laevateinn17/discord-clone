@@ -1,5 +1,5 @@
 import { Channel } from "src/channels/entities/channel.entity";
-import { Column, CreateDateColumn, Entity, JoinTable, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm"
+import { Column, CreateDateColumn, Entity, JoinColumn, JoinTable, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm"
 import { GuildMember } from "./guild-members.entity";
 import { AutoMap } from "@automapper/classes";
 
@@ -31,6 +31,9 @@ export class Guild {
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt: Date
 
+    @AutoMap()
+    @JoinColumn({name: 'owner_id'})
+    owner: GuildMember;
 
     @OneToMany(() => GuildMember, (member) => member.guild)
     members: GuildMember[];
