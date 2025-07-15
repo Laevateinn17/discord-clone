@@ -16,4 +16,7 @@ export class CreateMessageDto {
 
     @AutoMap()
     attachments: Express.Multer.File[]
+
+    @AutoMap()
+    createdAt: Date
 }

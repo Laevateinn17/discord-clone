@@ -13,7 +13,6 @@ export class MessagesController {
   @Post()
   @UseInterceptors(AnyFilesInterceptor())
   async create(@Headers('X-User-Id') userId: string, @UploadedFiles() attachments: Array<Express.Multer.File>, @Body(new ValidationPipe({transform: true})) dto: CreateMessageDto, @Res() res: Response) {
-    console.log(attachments)
     dto.senderId = userId;
     dto.attachments = attachments;
     const result = await this.messagesService.create(dto);

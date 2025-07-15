@@ -1,5 +1,5 @@
 
 export interface Payload<T> {
-    userId: string | string[]
+    recipients: string[]
     data: T
 }

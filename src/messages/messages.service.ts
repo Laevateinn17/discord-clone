@@ -15,17 +15,32 @@ import { MessageMention } from "./entities/message-mention.entity";
 import { AxiosResponse } from "axios";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
+import { ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
+import { GATEWAY_QUEUE, MESSAGE_RECEIVED } from "src/constants/message-broker";
+import { channel } from "diagnostics_channel";
+import { Payload } from "src/interfaces/payload.dto";
+import { ChannelResponseDTO } from "src/channels/dto/channel-response.dto";
 
 @Injectable()
 export class MessagesService {
 
+  private gatewayMQ: ClientProxy;
   constructor(
     @InjectRepository(Message) private readonly messagesRepository: Repository<Message>,
     @InjectRepository(Attachment) private readonly attachmentsRepository: Repository<Attachment>,
     @InjectRepository(MessageMention) private readonly messageMentionsRepository: Repository<MessageMention>,
     private readonly storageService: StorageService,
     private readonly channelsService: HttpService,
-  ) { }
+  ) {
+    this.gatewayMQ = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
+        queue: GATEWAY_QUEUE,
+        queueOptions: { durable: true }
+      }
+    });
+  }
 
   async create(dto: CreateMessageDto): Promise<Result<MessageResponseDTO>> {
     if (!dto.channelId || dto.channelId.length === 0) {
@@ -47,7 +62,7 @@ export class MessagesService {
     const channelResponse = await this.getChannelDetail(dto.senderId, dto.channelId);
 
     if (channelResponse.status !== HttpStatus.OK) {
-      return channelResponse;
+      return { ...channelResponse, data: null };
     }
     const message = mapper.map(dto, CreateMessageDto, Message);
     try {
@@ -96,6 +111,12 @@ export class MessagesService {
     const data = mapper.map(message, Message, MessageResponseDTO);
     if (dto.attachments) data.attachments = message.attachments.map(att => mapper.map(att, Attachment, AttachmentResponseDTO));
     if (dto.mentions) data.mentions = message.mentions.map(m => m.userId);
+    const userIds = channelResponse.data.recipients.filter(r => r.id !== dto.senderId).map(r => r.id);
+    try {
+      this.gatewayMQ.emit(MESSAGE_RECEIVED, { recipients: userIds, data: data } as Payload<MessageResponseDTO>);
+    } catch (error) {
+      console.error(error);
+    }
 
     return {
       status: HttpStatus.CREATED,
@@ -120,14 +141,14 @@ export class MessagesService {
     const channelResponse = await this.getChannelDetail(userId, channelId);
 
     if (channelResponse.status !== HttpStatus.OK) {
-      return channelResponse;
+      return { ...channelResponse, data: null };
     }
 
     const messages = await this.messagesRepository
       .createQueryBuilder('message')
       .leftJoinAndSelect('message.attachments', 'attachment')
       .leftJoinAndSelect('message.mentions', 'mention')
-      .where('message.channelId = :channelId', {channelId: channelId})
+      .where('message.channelId = :channelId', { channelId: channelId })
       .getMany()
 
     const data: MessageResponseDTO[] = messages.map(m => {
@@ -145,7 +166,7 @@ export class MessagesService {
     };
   }
 
-  private async getChannelDetail(userId: string, channelId: string): Promise<Result<any>> {
+  private async getChannelDetail(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
     let recipientResponse: AxiosResponse<any, any>;
     try {
       const url = `http://${process.env.GUILD_SERVICE_HOST}:${process.env.GUILD_SERVICE_PORT}/channels/${channelId}`;
