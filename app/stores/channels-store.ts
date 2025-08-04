@@ -14,9 +14,7 @@ interface ChannelsStoreState {
 
 export const useChannelsStore = create<ChannelsStoreState>((set, get) => ({
     channels: {},
-    setChannels: (channels: ChannelMap) => {
-        set({ channels });
-    },
+    setChannels: (channels: ChannelMap) => set({ channels }),
     updateChannel: (channel: Channel) => {
         set(state => ({
             channels: {

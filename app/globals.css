@@ -65,7 +65,7 @@
   --button-primary-selected: rgba(88, 101, 242, 0.16);
   /* --button-primary-disabled: rgb(88, 101, 242) */
   --status-danger: #f23f43;
-
+  --status-positive: rgb(67, 162, 90);
   --channels-default: oklab(0.75264 0.00240251 -0.00813961);
 
   --shadow-high: 0 12px 24px 0 hsl(none 0% 0% / 0.24);
@@ -228,4 +228,9 @@ a {
   text-decoration: none;
   color: black;
   font-weight: 600;
+}
+
+
+* {
+  user-select: none;
 }

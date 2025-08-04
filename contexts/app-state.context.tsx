@@ -17,8 +17,7 @@ export function useAppState() {
 export default function AppStateProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [a, setA] = useState(0);
-    useEffect(() => {
-    })
+    
     return (
         <AppStateContext.Provider value={{ isLoading, setIsLoading, a, setA }}>
             {children}

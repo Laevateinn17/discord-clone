@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation"
 import Head from "next/head"
 import { useAuth } from "@/contexts/auth.context"
 import { useLogoutMutation } from "@/hooks/mutations"
+import { MediaSettingsSection } from "./media-settings-section"
+import styled from "styled-components"
 
 interface SettingsPageProps {
     show: boolean
@@ -25,16 +27,21 @@ interface SettingsPageProps {
 
 interface SidebarItem {
     id: string
-    page: ReactNode
+    page?: ReactNode
     element: ReactNode
 }
+
+export const SettingsSectionHeader = styled.h2`
+    font-weight: bold;
+    font-size: 24px;
+`
 
 export default function SettingsPage({ show, closeSettingsHandler }: SettingsPageProps) {
     const [searchText, setSearchText] = useState("")
     const headers: string[] = ["User Settings", "Billing Settings", "App Settings", "Activity Settings"];
-    const {mutateAsync: logoutMutation} = useLogoutMutation();
+    const { mutateAsync: logoutMutation } = useLogoutMutation();
 
-    const sidebarItems: any = {
+    const sidebarItems: Record<string, SidebarItem[]> = {
         "User Settings": [
             {
                 id: "my-account",
@@ -122,7 +129,7 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
             },
             {
                 id: "Voice & Video",
-                page: undefined,
+                page: <MediaSettingsSection />,
                 element: <p>Voice & Video</p>
             },
             {
@@ -166,12 +173,19 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
     }
 
     const [activeItem, setActiveItem] = useState<string>(sidebarItems[headers[0]][0].id);
-    const { setUser } = useAuth();
     const router = useRouter();
 
     async function handleLogout() {
         await logoutMutation();
         router.push("/login");
+    }
+
+    function getActivePage(): ReactNode {
+        for (const section of headers) {
+            const item = sidebarItems[section].find(i => i.id === activeItem);
+            if (item) return item.page ?? <div></div>;
+        }
+        return <div></div>;
     }
 
     return (
@@ -230,7 +244,7 @@ export default function SettingsPage({ show, closeSettingsHandler }: SettingsPag
             </div>
             <div className={styles["content-region"]}>
                 <div className={styles["content-container"]}>
-
+                    {getActivePage()}
                 </div>
                 <div className={styles["tools-region"]}>
                     <div className={styles["close-button-container"]}>

@@ -26,6 +26,8 @@ import { useGetUserProfile, useUserProfileStore } from "../stores/user-profiles-
 import { useChannelsStore, useGetDMChannels } from "../stores/channels-store";
 import { Channel } from "@/interfaces/channel";
 import UserAvatar from "@/components/user-avatar/user-avatar";
+import { PeerConnectionManager } from "@/components/peer-connection-manager/peer-connection-manager";
+import { VoiceRingManager } from "@/components/voice-ring-manager/voice-ring-manager";
 
 interface HomeLayoutProps {
     children: ReactNode
@@ -58,7 +60,7 @@ const Pill = styled.div`
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
     transform: scale(0);
-    transition: all 100ms ease-in;
+    transition: all 150ms ease-in;
 
     &.active {
         height: 40px;
@@ -67,6 +69,11 @@ const Pill = styled.div`
 
     &.hover {
         transform: scale(1);
+    }
+
+    &.minimal {
+        transform: scale(1);
+        height: 10px;
     }
 `
 
@@ -188,6 +195,7 @@ const UnreadDMWrapper = styled.div`
     position: relative;
     transform: scale(0);
     animation: scaleBounceIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    cursor: pointer;
 
     @keyframes scaleBounceIn {
         0% {
@@ -204,16 +212,28 @@ const UnreadDMWrapper = styled.div`
 
 function UnreadDMChannel({ channel, unreadCount }: { channel: Channel, unreadCount: number }) {
     const recipient = useGetUserProfile(channel.recipients[0].id);
-
+    const router = useRouter();
+    const [isHovering, setIsHovering] = useState(false);
     if (!recipient) {
         return;
     }
 
     return (
-        <UnreadDMWrapper>
-            <UserAvatar user={recipient} showStatus={false} size="48" />
-            <UnreadMessageCount className="absolute">{unreadCount}</UnreadMessageCount>
-        </UnreadDMWrapper>
+        <GuildIconContainer>
+            <PillWrapper>
+                <Pill className={`${isHovering ? 'hover' : 'minimal'}`} />
+            </PillWrapper>
+            <UnreadDMWrapper
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+                onClick={() => router.push(`/channels/me/${channel.id}`)}
+            >
+                <UserAvatar user={recipient} showStatus={false} size="48" />
+                <UnreadMessageCount className="absolute">{unreadCount}</UnreadMessageCount>
+            </UnreadDMWrapper>
+            <Tooltip show={isHovering} text={recipient.displayName} position="right" />
+        </GuildIconContainer>
+
     );
 }
 
@@ -222,7 +242,6 @@ function GuildListSidebar() {
     const [showModal, setShowModal] = useState(false);
     const { data: guilds } = useGuildsQuery();
     const pathname = usePathname();
-    const { userProfileMap } = useUserPresence();
     const dmChannels = useGetDMChannels();
     const messagesPerChannel = useAllDMsMessages(dmChannels);
     const { data: user } = useCurrentUserQuery();
@@ -242,7 +261,6 @@ function GuildListSidebar() {
         let lastReadIndex = messages.findIndex(m => m.id === channel.lastReadId);
 
         const unreadCount = messages.length - 1 - lastReadIndex;
-        console.log(unreadCount);
         return unreadCount;
     }
 
@@ -340,6 +358,7 @@ function AppInitializer({ children }: { children: ReactNode }) {
             setIsLoading(false);
         });
 
+
     }, [user, isReady, relationships, dmChannels]);
 
     if (isLoading) {
@@ -391,6 +410,8 @@ export default function HomeLayout({ children, sidebar }: HomeLayoutProps) {
                                 }
                             </div>
                         </ContextMenuProvider>
+                        <PeerConnectionManager />
+                        <VoiceRingManager/>
                     </AppInitializer>
                 </SocketProvider>
             </UserPresenceProvider>

@@ -118,6 +118,7 @@
   flex: 1 1 auto;
   min-width: 460px;
   max-width: 740px;
+  padding: 60px 40px 80px;
 }
 
 .tools-region {

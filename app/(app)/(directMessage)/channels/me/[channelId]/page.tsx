@@ -1,33 +1,44 @@
 "use client"
 import ContentHeader from "@/app/(app)/content-header";
+import { useVoiceEvents } from "@/app/(auth)/hooks/socket-events";
+import { useAudioStore } from "@/app/stores/audio-store";
 import { useChannelsStore, useGetChannel } from "@/app/stores/channels-store";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import { useIsUserTyping, useTypingUsersFromChannel, useUserTypingStore } from "@/app/stores/user-typing-store";
+import { useGetChannelVoiceRing } from "@/app/stores/voice-ring-state-store";
+import { useGetChannelVoiceStates, useVoiceStateStore } from "@/app/stores/voice-state-store";
 import { LoadingIndicator } from "@/components/loading-indicator/loading-indicator";
 import MessageItem from "@/components/message-item/message-item";
 import Tooltip from "@/components/tooltip/tooltip";
 import UserAvatar from "@/components/user-avatar/user-avatar";
 import { MESSAGES_CACHE } from "@/constants/cache";
-import { useAuth } from "@/contexts/auth.context";
 import { MessageStatus } from "@/enums/message-status.enum";
+import { VoiceEventType } from "@/enums/voice-event-type";
 import { useCurrentUserQuery, useDMChannelsQuery, useMessagesQuery } from "@/hooks/queries";
 import { Channel } from "@/interfaces/channel";
 import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
 import { Message } from "@/interfaces/message";
 import { UserProfile } from "@/interfaces/user-profile";
-import { sendTypingStatus } from "@/services/channels/channels.service";
+import { ringChannelRecipients, sendTypingStatus } from "@/services/channels/channels.service";
 import { acknowledgeMessage, sendMessage } from "@/services/messages/messages.service";
+import { getImageURL } from "@/services/storage/storage.service";
 import { dateToShortDate } from "@/utils/date.utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "next/navigation"
-import { ChangeEvent, Fragment, KeyboardEvent, useEffect, useState } from "react";
+import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useState } from "react";
+import { BsPinAngleFill } from "react-icons/bs";
 import { FaCirclePlus } from "react-icons/fa6";
+import { ImPhoneHangUp } from "react-icons/im";
+import { MdGroupAdd } from "react-icons/md";
+import { PiPhoneCall, PiPhoneCallFill, PiVideoCamera, PiVideoCameraFill } from "react-icons/pi";
 import styled from "styled-components";
 
 const UserProfileHeader = styled.div`
     display: flex;
     align-items: center;
     max-height: auto;
+    flex-grow: 1;
 `
 
 const UserProfileHeaderText = styled.p`
@@ -47,12 +58,157 @@ const UserProfileHeaderTextContainer = styled.div`
     cursor: pointer;
 `
 
+const HeaderActionContainer = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: var(--interactive-normal);
+
+    &:hover {
+        color: var(--interactive-hover);
+    }
+`
+
+
+const CallHeader = styled.div`
+    display: flex;
+    width: 100%;
+    background: black;
+    flex-direction: column;
+    padding-bottom: 16px;
+`
+
+function HeaderActionButton({ children, onClick, tooltipText }: { children: ReactNode, onClick?: () => any, tooltipText: string }) {
+    const [isHovering, setIsHovering] = useState(false);
+
+
+    return (
+        <HeaderActionContainer
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+            onClick={onClick}>
+            {children}
+            <Tooltip position="bottom" show={isHovering} text={tooltipText} fontSize="14px" />
+        </HeaderActionContainer>
+    )
+}
+
+function SearchBar({ channel }: { channel: Channel }) {
+    return <input />
+}
+
+const AvatarImage = styled.img`
+    width: 80px;
+    height: 80px;
+    cursor: pointer;
+    border-radius: 50%;
+`
+
 function Header({ channel }: { channel: Channel }) {
+    const [isHovering, setIsHovering] = useState(false);
     const [isHoveringName, setIsHoveringName] = useState(false);
-    const { data: user } = useCurrentUserQuery();
     const { getUserProfile } = useUserProfileStore();
     const recipient: UserProfile = getUserProfile(channel.recipients[0].id) || channel.recipients[0];
     const isTyping = useIsUserTyping(channel.id, recipient.id);
+    const { updateVoiceState } = useVoiceStateStore()
+    const voiceStates = useGetChannelVoiceStates(channel.id);
+    const voiceRings = useGetChannelVoiceRing(channel.id);
+    const { data: user } = useCurrentUserQuery();
+    const { emitVoiceEvent } = useVoiceEvents();
+
+    async function handleJoinVoiceCall() {
+        if (voiceStates.length === 0) await ringChannelRecipients(channel.id);
+        emitVoiceEvent(channel.id, VoiceEventType.VOICE_JOIN)
+    }
+
+    async function handleLeaveVoiceCall() {
+        emitVoiceEvent(channel.id, VoiceEventType.VOICE_LEAVE)
+    }
+
+    if (voiceStates.length > 0) {
+        return (
+            <CallHeader
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}>
+                <ContentHeader hide={!isHovering}>
+                    <UserProfileHeader>
+                        <div className="ml-[4px] mr-[8px]">
+                            <UserAvatar user={recipient} size="24" isTyping={isTyping} />
+                        </div>
+                        <UserProfileHeaderTextContainer onMouseEnter={() => setIsHoveringName(true)} onMouseLeave={() => setIsHoveringName(false)}>
+                            <UserProfileHeaderText>
+                                {recipient.displayName}
+                            </UserProfileHeaderText>
+                            <Tooltip
+                                position="bottom"
+                                show={isHoveringName}
+                                text={recipient.username}
+                                fontSize="14px" />
+                        </UserProfileHeaderTextContainer>
+                    </UserProfileHeader>
+                    <div className="flex items-center text-[var(--interactive-normal)] gap-[8px]">
+                        <HeaderActionButton tooltipText="Join Voice Call" onClick={handleJoinVoiceCall}><PiPhoneCallFill size={20} /></HeaderActionButton>
+                        <HeaderActionButton tooltipText="Start Video Call"><PiVideoCameraFill size={20} /></HeaderActionButton>
+                        <HeaderActionButton tooltipText="Pinned Message"><BsPinAngleFill size={20} /></HeaderActionButton>
+                        <HeaderActionButton tooltipText="Add Friends to DM"><MdGroupAdd size={20} /></HeaderActionButton>
+                        <SearchBar channel={channel} />
+                    </div>
+                </ContentHeader>
+                <div className="flex justify-center items-center gap-3 my-[16px]">
+                    <AnimatePresence>
+                        {voiceRings.map(vr => {
+                            const user = getUserProfile(vr.recipientId);
+                            return (
+                                <motion.div
+                                    key={vr.recipientId}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    {user && <AvatarImage className="brightness-50" src={user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL)} />}
+                                </motion.div>
+                            );
+                        })}
+                        {voiceStates.map((vs) => {
+                            const user = getUserProfile(vs.userId);
+                            return (
+                                <motion.div
+                                    key={vs.userId}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    {user && <AvatarImage className="" src={user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL)} />}
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
+                </div>
+                <div className="flex justify-center">
+                    {voiceStates.find(vs => vs.userId === user?.id) ?
+                        (<button className="p-[10px] bg-[var(--status-danger)] rounded-lg" onClick={handleLeaveVoiceCall}>
+                            <div className="px-[12px] py-[4px]">
+                                <ImPhoneHangUp className="" size={18} />
+                            </div>
+                        </button>)
+                        :
+                        (<button className="p-[10px] bg-[var(--status-positive)] rounded-lg" onClick={handleJoinVoiceCall}>
+                            <div className="px-[12px] py-[4px]">
+                                <PiPhoneCallFill className="" size={18} />
+                            </div>
+                        </button>)
+                    }
+                </div>
+
+            </CallHeader>
+        )
+    }
 
     return (
         <ContentHeader>
@@ -71,6 +227,13 @@ function Header({ channel }: { channel: Channel }) {
                         fontSize="14px" />
                 </UserProfileHeaderTextContainer>
             </UserProfileHeader>
+            <div className="flex items-center text-[var(--interactive-normal)] gap-[8px]">
+                <HeaderActionButton tooltipText={"Start Voice Call"} onClick={handleJoinVoiceCall}><PiPhoneCallFill size={20} /></HeaderActionButton>
+                <HeaderActionButton tooltipText="Start Video Call"><PiVideoCameraFill size={20} /></HeaderActionButton>
+                <HeaderActionButton tooltipText="Pinned Message"><BsPinAngleFill size={20} /></HeaderActionButton>
+                <HeaderActionButton tooltipText="Add Friends to DM"><MdGroupAdd size={20} /></HeaderActionButton>
+                <SearchBar channel={channel} />
+            </div>
         </ContentHeader>
 
     )
@@ -393,7 +556,7 @@ export default function Page() {
 
         const lastMessageId = messages![messages!.length - 1].id;
 
-        handleAcknowledgeMessage(channel!.id, lastMessageId);
+        if (lastMessageId !== channel?.lastReadId) handleAcknowledgeMessage(channel!.id, lastMessageId);
 
     }, [isPageReady])
 

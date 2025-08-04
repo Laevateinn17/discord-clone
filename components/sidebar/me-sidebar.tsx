@@ -196,7 +196,7 @@ export default function MeSidebarContent() {
                     <MenuContainer>
                         {router && menuItems.map((item, index) => {
                             return (
-                                <MenuItem key={item.id} className={`${pathname === item.path ? "menu-item-active" : ""}`}>
+                                <MenuItem key={item.id} className={`${pathname === item.path ? "menu-item-active" : ""}`} onClick={() => router.push(item.path)}>
                                     {item.menuItem}
                                 </MenuItem>
                             );

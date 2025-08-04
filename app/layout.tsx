@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/auth.context";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import SocketProvider, { useSocket } from "@/contexts/socket.context";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import AudioManager from "@/components/audio-manager/audio-manager";
+import { useAppSettingsStore } from "./stores/app-settings-store";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,20 +22,51 @@ const geistMono = Geist_Mono({
 
 
 const queryClient = new QueryClient();
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+
+const soundMap = {
+  ring: '/sounds/ringtone.mp3',
+  mention: '/sounds/mention.mp3',
+  message: '/sounds/message.mp3',
+  call: '/sounds/call.mp3',
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+
+  const handleDeviceChange = async () => {
+    const mediaSettings = useAppSettingsStore.getState().mediaSettings;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const outputDevices = devices.filter(d => d.kind == 'audiooutput');
+    const inputDevices = devices.filter(d => d.kind == 'audioinput');
+    console.log(outputDevices);
+    if (!inputDevices.some(d => d.deviceId === mediaSettings.audioInputDeviceId)) {
+      const fallback = inputDevices.find(d => d.deviceId !== 'communications') ?? inputDevices[0];
+      if (fallback) useAppSettingsStore.getState().setAudioInputDevice(fallback.deviceId);
+    }
+    if (!outputDevices.some(d => d.deviceId === mediaSettings.audioOutputDeviceId)) {
+      const fallback = outputDevices.find(d => d.deviceId !== 'communications') ?? outputDevices[0];
+      if (fallback) useAppSettingsStore.getState().setAudioOutputDevice(fallback.deviceId);
+    }
+  }
+
+  useEffect(() => {
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, [])
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-hidden`}
       >
+
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
             {children}
           </QueryClientProvider>
+          <AudioManager />
         </AuthProvider>
       </body>
     </html>
