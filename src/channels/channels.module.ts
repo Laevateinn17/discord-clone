@@ -11,7 +11,7 @@ import { RedisModule } from "src/redis/redis.module";
 @Module({
   controllers: [GuildChannelsController, DMChannelsController, ChannelsController],
   providers: [ChannelsService],
-  imports: [HttpModule, RedisModule, TypeOrmModule.forFeature([Channel, ChannelRecipient, UserReadState]), SfuModule],
+  imports: [HttpModule, RedisModule, TypeOrmModule.forFeature([Channel, ChannelRecipient, UserReadState])],
   exports: [ChannelsService]
 })
 export class ChannelsModule {}
