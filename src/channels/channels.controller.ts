@@ -42,19 +42,4 @@ export class ChannelsController {
     async handleVoiceRingDismiss(@Body(new ValidationPipe({ transform: true })) dto: Payload<any>) {
         this.gateway.handleVoiceRingDismiss(dto);
     }
-
-    @MessagePattern(CREATE_RTC_OFFER) 
-    async handleRTCOfferCreated(@Body(new ValidationPipe({ transform: true })) dto: Payload<any>) {
-        this.gateway.handleBroadcastRTCOffer(dto)
-    }
-    
-    @MessagePattern(CREATE_RTC_ANSWER) 
-    async handleRTCAnswerCreated(@Body(new ValidationPipe({ transform: true })) dto: Payload<any>) {
-        this.gateway.handleBroadcastRTCAnswer(dto)
-    }
-
-    @MessagePattern(PRODUCER_CREATED)
-    async handleBroadcastProducerCreated(@Body(new ValidationPipe({ transform: true })) dto: Payload<any>) {
-        this.gateway.handleBroadcastProducerCreated(dto);
-    }
 }
