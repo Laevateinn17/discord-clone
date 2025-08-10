@@ -31,7 +31,6 @@ import { VoiceRingState } from "./entities/voice-ring-state";
 import { VOICE_RING_TIMEOUT } from "src/constants/time";
 import { VoiceRingStateDTO } from "./dto/voice-ring-state.dto";
 import { RTCOfferDTO } from "./dto/rtc-offer.dto";
-import { SfuService } from "src/sfu/sfu.service";
 import { ProducerCreatedDTO } from "./dto/producer-created.dto";
 
 @Injectable()
@@ -41,7 +40,6 @@ export class ChannelsService {
   constructor(
     private readonly usersService: HttpService,
     private readonly redisService: RedisService,
-    private readonly sfuService: SfuService,
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
     @InjectRepository(UserReadState) private readonly userReadStateRepository: Repository<UserReadState>
@@ -643,24 +641,9 @@ export class ChannelsService {
     this.gatewayMQ.emit(CREATE_RTC_ANSWER, { recipients: recipients.filter(r => r !== dto.userId), data: dto } as Payload<RTCOfferDTO>)
   }
 
-  async handleCreateTransport(dto: RTCOfferDTO) {
-    try {
-      const response = await this.sfuService.createTransport(dto.channelId);
-      if (response.status !== HttpStatus.OK) {
-        return null;
-      }
-
-      this.gatewayMQ.emit(CREATE_TRANSPORT, { recipients: [dto.userId], data: response.data } as Payload<any>);
-    }
-    catch (error) {
-      console.log(error)
-    }
-  }
-
   async handleCreateProducer(dto: ProducerCreatedDTO) {
     const client = await this.redisService.getClient();
     const recipients = await client.sMembers(this.getVoiceChannelKey(dto.channelId));
-    console.log(`user id: ${dto.userId}, recipients: `, recipients.filter(r => r !== dto.userId));
     this.gatewayMQ.emit(PRODUCER_CREATED, { recipients: recipients.filter(r => r !== dto.userId), data: dto })
   }
 

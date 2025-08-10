@@ -12,6 +12,7 @@ import { RedisService } from "src/redis/redis.service";
 import { VoiceEventType } from "./enums/voice-event-type";
 import { RTCOfferDTO } from "./dto/rtc-offer.dto";
 import { ProducerCreatedDTO } from "./dto/producer-created.dto";
+import { GetDMChannelsDTO } from "./dto/get-dm-channels.dto";
 
 @Controller('guilds/:guildId/channels')
 export class GuildChannelsController {
@@ -66,6 +67,11 @@ export class DMChannelsController {
     const { status } = result;
 
     return res.status(status).json(result);
+  }
+
+  @GrpcMethod('ChannelsService', 'GetDMChannels')
+  async acknowledgeMessage(dto: GetDMChannelsDTO) {
+    return this.channelsService.getDMChannels(dto.userId);
   }
 
   @Get(':channelId')
@@ -125,7 +131,7 @@ export class ChannelsController {
   }
 
   @MessagePattern(VOICE_UPDATE_EVENT)
-  async voiceChannelLeave(@Body(new ValidationPipe({ transform: true })) dto: VoiceEventDTO) {
+  async voiceUpdate(@Body(new ValidationPipe({ transform: true })) dto: VoiceEventDTO) {
     switch (dto.type) {
       case VoiceEventType.VOICE_JOIN: await this.channelsService.handleVoiceJoin(dto); break;
       case VoiceEventType.VOICE_LEAVE: await this.channelsService.handleVoiceLeave(dto); break;
@@ -147,11 +153,6 @@ export class ChannelsController {
     await this.channelsService.handleRTCOfferCreated(dto);
   }
   
-  @MessagePattern(CREATE_TRANSPORT)
-  async createTransport(@Body(new ValidationPipe({ transform: true })) dto: RTCOfferDTO) {
-    await this.channelsService.handleCreateTransport(dto);
-  }
-
   @MessagePattern(CREATE_RTC_ANSWER)
   async rtcAnswerCreated(@Body(new ValidationPipe({ transform: true })) dto: RTCOfferDTO) {
     await this.channelsService.handleRTCAnswerCreated(dto);

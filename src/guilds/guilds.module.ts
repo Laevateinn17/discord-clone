@@ -7,11 +7,10 @@ import { GuildMember } from "./entities/guild-members.entity";
 import { StorageModule } from "src/storage/storage.module";
 import { ChannelsModule } from "src/channels/channels.module";
 import { HttpModule } from "@nestjs/axios";
-import { SfuModule } from "src/sfu/sfu.module";
 
 @Module({
   controllers: [GuildsController],
   providers: [GuildsService],
-  imports: [TypeOrmModule.forFeature([Guild, GuildMember]), StorageModule, ChannelsModule, HttpModule, SfuModule]
+  imports: [TypeOrmModule.forFeature([Guild, GuildMember]), StorageModule, ChannelsModule, HttpModule]
 })
 export class GuildsModule {}
