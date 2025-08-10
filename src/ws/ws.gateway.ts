@@ -1,12 +1,10 @@
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from "socket.io";
 import { RelationshipResponseDTO } from "src/relationships/dto/relationship-response.dto";
-import { Body, Controller, Inject, Injectable, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Inject, Injectable, OnModuleInit, ValidationPipe } from "@nestjs/common";
 import { Payload } from "./dto/payload.dto";
-import { ClientProxy, ClientProxyFactory, EventPattern, MessagePattern, Transport } from "@nestjs/microservices";
-import { CLIENT_READY_EVENT, FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_DM_CHANNELS_EVENT, GET_USERS_STATUS_EVENT, GET_USERS_STATUS_RESPONSE_EVENT, GET_GUILDS_EVENT, GET_RELATIONSHIPS_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_QUEUE, USER_STATUS_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_EVENT, CHANNEL_QUEUE, VOICE_UPDATE_EVENT, GET_VOICE_STATES_EVENT, GET_VOICE_RINGS_EVENT, VOICE_RING_DISMISS_EVENT, CREATE_RTC_OFFER, CREATE_RTC_ANSWER, ICE_CANDIDATE, CREATE_SEND_TRANSPORT, GET_RTP_CAPABILITIES, CREATE_PRODUCER, CREATE_CONSUMER, PRODUCER_CREATED, CREATE_RECV_TRANSPORT, CONSUMER_CREATED } from "src/constants/events";
-import { HttpService } from "@nestjs/axios";
-import axios from "axios";
+import { ClientGrpc, ClientProxy, ClientProxyFactory, EventPattern, MessagePattern, Transport } from "@nestjs/microservices";
+import { CLIENT_READY_EVENT, FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_DM_CHANNELS_EVENT, GET_USERS_STATUS_EVENT, GET_USERS_STATUS_RESPONSE_EVENT, GET_GUILDS_EVENT, GET_RELATIONSHIPS_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_QUEUE, USER_STATUS_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_EVENT, CHANNEL_QUEUE, VOICE_UPDATE_EVENT, GET_VOICE_STATES_EVENT, GET_VOICE_RINGS_EVENT, VOICE_RING_DISMISS_EVENT, CREATE_RTC_OFFER, CREATE_RTC_ANSWER, ICE_CANDIDATE, CREATE_SEND_TRANSPORT, GET_RTP_CAPABILITIES, CREATE_PRODUCER, CREATE_CONSUMER, PRODUCER_CREATED, CREATE_RECV_TRANSPORT, CONSUMER_CREATED, RESUME_CONSUMER, CONNECT_TRANSPORT, CLOSE_SFU_CLIENT, GET_CHANNEL_PRODUCERS } from "src/constants/events";
 import { UserStatusUpdateDTO } from "src/user-profiles/dto/user-status-update.dto";
 import { UserTypingDTO } from "src/guilds/dto/user-typing.dto";
 import { VoiceEventDTO } from "src/channels/dto/voice-event.dto";
@@ -15,18 +13,29 @@ import { CreateProducerDTO } from "src/channels/dto/create-producer.dto";
 import { CreateConsumerDTO } from "src/channels/dto/create-consumer.dto";
 import { ProducerCreatedDTO } from "src/channels/dto/producer-created.dto";
 import { ConsumerCreatedDTO } from "src/channels/dto/consumer-created.dto";
+import { ConnectTransportDTO } from "src/sfu/dto/connect-transport.dto";
+import { ChannelsService } from "src/channels/grpc/channels.service";
+import { firstValueFrom } from "rxjs";
+import { UsersService } from "src/users/grpc/users.service";
+import { RelationshipsService } from "src/relationships/grpc/relationships.service";
 
 @Injectable()
 @WebSocketGateway({ namespace: "/ws" })
-export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+  private channelsService: ChannelsService;
+  private relationshipsService: RelationshipsService;
+  private usersService: UsersService;
   private userMQ: ClientProxy;
-  private channelMQ: ClientProxy
+  private channelMQ: ClientProxy;
   @WebSocketServer()
   server: Server
   private users: Map<string, string> = new Map();
 
   constructor(
-    private readonly sfuService: SfuService
+    private readonly sfuService: SfuService,
+    @Inject('CHANNELS_SERVICE') private channelGRPCClient: ClientGrpc,
+    @Inject('USERS_SERVICE') private userGRPCClient: ClientGrpc,
+    @Inject('RELATIONSHIPS_SERVICE') private relationshipGRPCClient: ClientGrpc
   ) {
     this.userMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
@@ -187,6 +196,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   @SubscribeMessage(VOICE_UPDATE_EVENT)
   async handleVoiceJoin(@MessageBody() payload: any, @ConnectedSocket() client: Socket) {
     const userId = client.handshake.headers['x-user-id'] as string;
+    console.log('user ', userId, payload);
 
     this.channelMQ.emit(VOICE_UPDATE_EVENT, { ...payload, userId: userId });
   }
@@ -206,8 +216,18 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   @SubscribeMessage(CLIENT_READY_EVENT)
   async handleClientReady(@ConnectedSocket() client: Socket) {
     const userId = client.handshake.headers['x-user-id'] as string;
-    this.channelMQ.emit(GET_VOICE_STATES_EVENT, userId);
-    this.channelMQ.emit(GET_VOICE_RINGS_EVENT, userId);
+
+    try {
+      const dmChannelsResponse = await firstValueFrom(this.channelsService.getDmChannels({ userId }));
+      const userResponse = await firstValueFrom(this.usersService.getCurrentUser({ userId }));
+      const relationshipResponse = await firstValueFrom(this.relationshipsService.getRelationships({ userId }));
+      this.channelMQ.emit(GET_VOICE_STATES_EVENT, userId);
+      this.channelMQ.emit(GET_VOICE_RINGS_EVENT, userId);
+
+      return { user: userResponse.data, dmChannels: dmChannelsResponse.data, relationships: relationshipResponse.data };
+    } catch (error) {
+      console.log('failed grpc request', error)
+    }
   }
 
   async handleGetVoiceStates(payload: Payload<any>) {
@@ -258,159 +278,9 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
     if (recipients.length > 0) this.server.to(recipients).emit(VOICE_RING_DISMISS_EVENT, payload.data);
   }
 
-  @SubscribeMessage(CREATE_RTC_OFFER)
-  async handleRTCOfferCreated(@MessageBody() payload: { channelId: string, offer: RTCSessionDescriptionInit }, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    this.channelMQ.emit(CREATE_RTC_OFFER, { ...payload, userId: userId });
-  }
-
-  @SubscribeMessage(CREATE_RTC_ANSWER)
-  async handleRTCAnswerCreated(@MessageBody() payload: { channelId: string, offer: RTCSessionDescriptionInit }, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    this.channelMQ.emit(CREATE_RTC_ANSWER, { ...payload, userId: userId });
-  }
-  async handleBroadcastRTCOffer(payload: Payload<any>) {
-    const recipients = [];
-    for (const recipient of payload.recipients) {
-      const socketId = this.users.get(recipient);
-      if (socketId) {
-        recipients.push(socketId);
-      }
-    }
-
-    if (recipients.length > 0) this.server.to(recipients).emit(CREATE_RTC_OFFER, payload.data);
-  }
-
-  async handleBroadcastRTCAnswer(payload: Payload<any>) {
-    const recipients = [];
-    for (const recipient of payload.recipients) {
-      const socketId = this.users.get(recipient);
-      if (socketId) {
-        recipients.push(socketId);
-      }
-    }
-
-    if (recipients.length > 0) this.server.to(recipients).emit(CREATE_RTC_ANSWER, payload.data);
-  }
-
-  @SubscribeMessage(ICE_CANDIDATE)
-  async trickleICE(@MessageBody() payload: { channelId: string, candidate: any, recipients: string[] }, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    const recipients = [];
-    for (const recipient of payload.recipients) {
-      const socketId = this.users.get(recipient);
-      if (socketId) {
-        recipients.push(socketId);
-      }
-    }
-
-    if (recipients.length > 0) this.server.to(recipients).emit(ICE_CANDIDATE, payload);
-  }
-
-  @SubscribeMessage(CREATE_SEND_TRANSPORT)
-  async createSendTransport(@ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    try {
-      const response = await this.sfuService.createTransport();
-      if (response.status !== 200) return;
-
-      const user = this.users.get(userId);
-      if (user) this.server.to(user).emit(CREATE_SEND_TRANSPORT, response.data)
-    }
-    catch (error) {
-      console.log(error);
-    }
-  }
-
-  @SubscribeMessage(CREATE_RECV_TRANSPORT)
-  async createRecvTransport(@ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    try {
-      const response = await this.sfuService.createTransport();
-      if (response.status !== 200) return;
-
-      const user = this.users.get(userId);
-      if (user) this.server.to(user).emit(CREATE_RECV_TRANSPORT, response.data)
-    }
-    catch (error) {
-      console.log(error);
-    }
-  }
-
-
-  @SubscribeMessage(GET_RTP_CAPABILITIES)
-  async getRTPCapabilities(@MessageBody() payload: { channelId: string }, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-    try {
-      const response = await this.sfuService.getRTPCapabilities();
-      if (response.status !== 200) return;
-
-      const user = this.users.get(userId);
-      if (user) this.server.to(user).emit(GET_RTP_CAPABILITIES, { channelId: payload.channelId, rtpCapabilities: response.data.rtpCapabilities })
-    }
-    catch (error) {
-      console.log(error);
-    }
-  }
-
-  async handleBroadcastTransportCreated(payload: Payload<any>) {
-    const recipients = [];
-    for (const recipient of payload.recipients) {
-      const socketId = this.users.get(recipient);
-      if (socketId) {
-        recipients.push(socketId);
-      }
-    }
-
-    if (recipients.length > 0) this.server.to(recipients).emit(CREATE_SEND_TRANSPORT, payload.data);
-  }
-
-  @SubscribeMessage(CREATE_PRODUCER)
-  async handleCreateProducer(@MessageBody() payload: CreateProducerDTO, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-    console.log('creating producer from', userId);
-    try {
-      const response = await this.sfuService.createProducer({ ...payload, userId: userId });
-      if (response.status !== 200) return;
-
-      this.channelMQ.emit(PRODUCER_CREATED, { producerId: response.data.id, userId, channelId: payload.channelId, kind: response.data.kind } as ProducerCreatedDTO);
-    }
-    catch (error) {
-      console.log("failed creating producer", error.message);
-    }
-  }
-
-  @SubscribeMessage(CREATE_CONSUMER)
-  async handleCreateConsumer(@MessageBody() payload: CreateConsumerDTO, @ConnectedSocket() client: Socket) {
-    const userId = client.handshake.headers['x-user-id'] as string;
-    try {
-      const response = await this.sfuService.createConsumer(payload);
-      if (response.status !== 200) return;
-
-      const user = this.users.get(userId);
-      console.log(payload);
-      if (user) this.server.to(user).emit(CONSUMER_CREATED, { ...response.data, userId: payload.userId } as ConsumerCreatedDTO);
-    }
-    catch (error) {
-      console.log(error);
-    }
-  }
-
-  async handleBroadcastProducerCreated(payload: Payload<any>) {
-    const recipients = [];
-    console.log('broadcasting producers to', payload.recipients)
-    for (const recipient of payload.recipients) {
-      const socketId = this.users.get(recipient);
-      if (socketId) {
-        recipients.push(socketId);
-      }
-    }
-
-    if (recipients.length > 0) this.server.to(recipients).emit(PRODUCER_CREATED, payload.data);
+  onModuleInit() {
+    this.channelsService = this.channelGRPCClient.getService<ChannelsService>('ChannelsService');
+    this.usersService = this.userGRPCClient.getService<UsersService>('UsersService');
+    this.relationshipsService = this.relationshipGRPCClient.getService<RelationshipsService>('RelationshipsService');
   }
 }

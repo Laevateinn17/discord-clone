@@ -18,6 +18,7 @@ import { ChannelsController } from './channels/channels.controller';
 import { SfuService } from './sfu/sfu.service';
 import { SfuModule } from './sfu/sfu.module';
 import { HttpModule } from "@nestjs/axios";
+import { GrpcClientModule } from './grpc-client/grpc-client.module';
 
 export const mapper = createMapper({
   strategyInitializer: classes(),
@@ -27,7 +28,7 @@ export const mapper = createMapper({
   imports: [ConfigModule.forRoot({
     isGlobal: true,
     envFilePath: '.env'
-  }), WsModule, RelationshipsModule, MessagesModule, UserProfilesModule, GuildsModule, SfuModule, HttpModule],
+  }), WsModule, RelationshipsModule, MessagesModule, UserProfilesModule, GuildsModule, SfuModule, HttpModule, GrpcClientModule],
   controllers: [AppController, UserProfilesController, GuildsController, ChannelsController],
   providers: [AppService, SfuService]
 })

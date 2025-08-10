@@ -41,4 +41,9 @@ export const GET_RTP_CAPABILITIES = 'get_rtp_capabilities';
 export const CREATE_PRODUCER = 'create_producer';
 export const PRODUCER_CREATED = 'producer_created';
 export const CREATE_CONSUMER = 'create_consumer';
-export const CONSUMER_CREATED = 'consumer_created'
+export const CONSUMER_CREATED = 'consumer_created';
+export const PAUSE_CONSUMER = 'pause_consumer';
+export const RESUME_CONSUMER = 'resume_consumer';
+export const CLOSE_SFU_CLIENT = 'close_sfu_client';
+
+export const GET_CHANNEL_PRODUCERS = 'get_channel_producers';

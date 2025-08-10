@@ -23,11 +23,24 @@ export class SfuService {
     }
 
     async createProducer(dto: any) {
-        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/producer`, dto));
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/producers`, dto));
     }
 
     async createConsumer(dto: any) {
-        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/consumer`, dto));
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/consumers`, dto));
+    }
+
+    async resumeConsumer(consumerId: string) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/consumers/${consumerId}/resume`));
+    }
+
+    async closeClient(dto: any) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/close`, dto));
+    }
+
+    async getChannelProducers(channelId: string) {
+        return await firstValueFrom(this.httpService.get(`http://${this.endpoint}/producers/channels/${channelId}`));
+
     }
 
 }

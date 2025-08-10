@@ -13,12 +13,6 @@ export class RelationshipsController {
     ) {
     }
 
-    @Get()
-    hello() {
-        console.log("test");
-        return "Hello";
-    }
-
     @MessagePattern(FRIEND_REQUEST_RECEIVED_EVENT)
     async handleFriendRequestReceived(@Body(new ValidationPipe({ transform: true })) dto: Payload<RelationshipResponseDTO>) {
         console.log("received friend request", dto);
