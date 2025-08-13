@@ -71,6 +71,7 @@ export class DMChannelsController {
 
   @GrpcMethod('ChannelsService', 'GetDMChannels')
   async acknowledgeMessage(dto: GetDMChannelsDTO) {
+    console.log('test')
     return this.channelsService.getDMChannels(dto.userId);
   }
 
