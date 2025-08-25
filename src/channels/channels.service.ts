@@ -193,7 +193,6 @@ export class ChannelsService {
       }));
     }
 
-
     return {
       status: HttpStatus.OK,
       data: dto,
@@ -492,6 +491,8 @@ export class ChannelsService {
       };
     }
 
+    console.log('1')
+
     if (!channel.recipients.find(r => r.userId === dto.userId)) {
       return {
         status: HttpStatus.FORBIDDEN,
@@ -500,25 +501,26 @@ export class ChannelsService {
       };
     }
 
+    console.log('2')
 
     const client = await this.redisService.getClient();
-    const state: VoiceState = { channelId: dto.channelId, userId: dto.userId, isDeafened: false, isMuted: false };
+    const state: VoiceState = { channelId: dto.channelId, userId: dto.userId, isDeafened: dto.data.isDeafened, isMuted: dto.data.isMuted };
     await client.set(this.getVoiceStateKey(dto.channelId, dto.userId), JSON.stringify(state));
     await client.sAdd(this.getVoiceChannelKey(dto.channelId), dto.userId);
 
+    console.log('3')
     await this.handleDismissVoiceRing(dto.userId, dto.channelId);
 
+    console.log('4')
 
     const recipients = channel.recipients.map(r => r.userId);
     const payload: VoiceEventDTO = {
       channelId: state.channelId,
       userId: state.userId,
       type: VoiceEventType.VOICE_JOIN,
-      data: {
-        channelId: dto.channelId,
-        userId: dto.userId
-      } as VoiceStateDTO
+      data: state as VoiceStateDTO
     };
+    console.log('5')
 
     this.gatewayMQ.emit(VOICE_UPDATE_EVENT, { recipients: recipients, data: payload } as Payload<VoiceEventDTO>);
   }
@@ -629,23 +631,55 @@ export class ChannelsService {
     }
   }
 
-  async handleRTCOfferCreated(dto: RTCOfferDTO) {
+  async handleVoiceStateUpdate(dto: VoiceEventDTO) {
     const client = await this.redisService.getClient();
-    const recipients = await client.sMembers(this.getVoiceChannelKey(dto.channelId));
-    this.gatewayMQ.emit(CREATE_RTC_OFFER, { recipients: recipients.filter(r => r !== dto.userId), data: dto } as Payload<RTCOfferDTO>)
+    const key = this.getVoiceStateKey(dto.channelId, dto.userId);
+    const rawState = await client.get(key);
+    console.log('a')
+    if (typeof (rawState) !== 'string') return;
+    console.log('b')
+    const oldState: VoiceState = JSON.parse(rawState);
+    const newState: VoiceState = {
+      ...oldState,
+      ...dto.data
+    };
+
+    await client.set(key, JSON.stringify(newState));
+    console.log('c')
+
+    let channel = await this.channelsRepository
+      .createQueryBuilder('channel')
+      .innerJoinAndSelect('channel.recipients', 'channel_recipient')
+      .where('channel.id = :channelId', { channelId: dto.channelId })
+      .getOne();
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel not found'
+      };
+    }
+
+    if (!channel.recipients.find(r => r.userId === dto.userId)) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'Channel not found'
+      };
+    }
+    const recipients = channel.recipients.map(r => r.userId);
+
+    const payload: VoiceEventDTO = {
+      channelId: dto.channelId,
+      userId: dto.userId,
+      type: VoiceEventType.STATE_UPDATE,
+      data: newState
+    }
+
+    console.log('d');
+    this.gatewayMQ.emit(VOICE_UPDATE_EVENT, {recipients: recipients, data: payload} as Payload<VoiceEventDTO>)
   }
 
-  async handleRTCAnswerCreated(dto: RTCOfferDTO) {
-    const client = await this.redisService.getClient();
-    const recipients = await client.sMembers(this.getVoiceChannelKey(dto.channelId));
-    this.gatewayMQ.emit(CREATE_RTC_ANSWER, { recipients: recipients.filter(r => r !== dto.userId), data: dto } as Payload<RTCOfferDTO>)
-  }
-
-  async handleCreateProducer(dto: ProducerCreatedDTO) {
-    const client = await this.redisService.getClient();
-    const recipients = await client.sMembers(this.getVoiceChannelKey(dto.channelId));
-    this.gatewayMQ.emit(PRODUCER_CREATED, { recipients: recipients.filter(r => r !== dto.userId), data: dto })
-  }
 
   private getVoiceChannelKey(channelId: string) {
     return `voice:channel:${channelId}`;

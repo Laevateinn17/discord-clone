@@ -71,7 +71,6 @@ export class DMChannelsController {
 
   @GrpcMethod('ChannelsService', 'GetDMChannels')
   async acknowledgeMessage(dto: GetDMChannelsDTO) {
-    console.log('test')
     return this.channelsService.getDMChannels(dto.userId);
   }
 
@@ -136,6 +135,7 @@ export class ChannelsController {
     switch (dto.type) {
       case VoiceEventType.VOICE_JOIN: await this.channelsService.handleVoiceJoin(dto); break;
       case VoiceEventType.VOICE_LEAVE: await this.channelsService.handleVoiceLeave(dto); break;
+      case VoiceEventType.STATE_UPDATE: await this.channelsService.handleVoiceStateUpdate(dto); break;
     }
   }
 
@@ -149,19 +149,5 @@ export class ChannelsController {
     await this.channelsService.handleGetVoiceRings(userId);
   }
 
-  @MessagePattern(CREATE_RTC_OFFER)
-  async rtcOfferCreated(@Body(new ValidationPipe({ transform: true })) dto: RTCOfferDTO) {
-    await this.channelsService.handleRTCOfferCreated(dto);
-  }
-  
-  @MessagePattern(CREATE_RTC_ANSWER)
-  async rtcAnswerCreated(@Body(new ValidationPipe({ transform: true })) dto: RTCOfferDTO) {
-    await this.channelsService.handleRTCAnswerCreated(dto);
-  }
-
-  @MessagePattern(PRODUCER_CREATED)
-  async onProducerCreated(@Body(new ValidationPipe({ transform: true })) dto: ProducerCreatedDTO) {
-      await this.channelsService.handleCreateProducer(dto);
-  }
 
 }
