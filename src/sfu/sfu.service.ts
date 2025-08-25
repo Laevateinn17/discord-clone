@@ -43,4 +43,19 @@ export class SfuService {
 
     }
 
+    async muteProducer(producerId: string) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/producers/${producerId}/mute`))
+    }
+
+    async unmuteProducer(producerId: string) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/producers/${producerId}/unmute`))
+    }
+
+    async deafenConsumer(consumerId: string) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/consumers/${consumerId}/deafen`))
+    }
+
+    async undeafenConsumer(consumerId: string) {
+        return await firstValueFrom(this.httpService.post(`http://${this.endpoint}/consumers/${consumerId}/undeafen`))
+    }
 }

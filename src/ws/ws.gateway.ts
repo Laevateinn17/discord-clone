@@ -1,10 +1,10 @@
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from "socket.io";
 import { RelationshipResponseDTO } from "src/relationships/dto/relationship-response.dto";
-import { Body, Controller, Inject, Injectable, OnModuleInit, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, HttpStatus, Inject, Injectable, OnModuleInit, ValidationPipe } from "@nestjs/common";
 import { Payload } from "./dto/payload.dto";
 import { ClientGrpc, ClientProxy, ClientProxyFactory, EventPattern, MessagePattern, Transport } from "@nestjs/microservices";
-import { CLIENT_READY_EVENT, FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_DM_CHANNELS_EVENT, GET_USERS_STATUS_EVENT, GET_USERS_STATUS_RESPONSE_EVENT, GET_GUILDS_EVENT, GET_RELATIONSHIPS_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_QUEUE, USER_STATUS_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_EVENT, CHANNEL_QUEUE, VOICE_UPDATE_EVENT, GET_VOICE_STATES_EVENT, GET_VOICE_RINGS_EVENT, VOICE_RING_DISMISS_EVENT, CREATE_RTC_OFFER, CREATE_RTC_ANSWER, ICE_CANDIDATE, CREATE_SEND_TRANSPORT, GET_RTP_CAPABILITIES, CREATE_PRODUCER, CREATE_CONSUMER, PRODUCER_CREATED, CREATE_RECV_TRANSPORT, CONSUMER_CREATED, RESUME_CONSUMER, CONNECT_TRANSPORT, CLOSE_SFU_CLIENT, GET_CHANNEL_PRODUCERS } from "src/constants/events";
+import { CLIENT_READY_EVENT, FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_DM_CHANNELS_EVENT, GET_USERS_STATUS_EVENT, GET_USERS_STATUS_RESPONSE_EVENT, GET_GUILDS_EVENT, GET_RELATIONSHIPS_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_QUEUE, USER_STATUS_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_EVENT, CHANNEL_QUEUE, VOICE_UPDATE_EVENT, GET_VOICE_STATES_EVENT, GET_VOICE_RINGS_EVENT, VOICE_RING_DISMISS_EVENT, CREATE_RTC_OFFER, CREATE_RTC_ANSWER, ICE_CANDIDATE, CREATE_SEND_TRANSPORT, CREATE_PRODUCER, CREATE_CONSUMER, CREATE_RECV_TRANSPORT, RESUME_CONSUMER, CONNECT_TRANSPORT, CLOSE_SFU_CLIENT, VOICE_MUTE } from "src/constants/events";
 import { UserStatusUpdateDTO } from "src/user-profiles/dto/user-status-update.dto";
 import { UserTypingDTO } from "src/guilds/dto/user-typing.dto";
 import { VoiceEventDTO } from "src/channels/dto/voice-event.dto";
@@ -219,6 +219,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
 
     try {
       const dmChannelsResponse = await firstValueFrom(this.channelsService.getDmChannels({ userId }));
+      console.log(dmChannelsResponse);
       const userResponse = await firstValueFrom(this.usersService.getCurrentUser({ userId }));
       const relationshipResponse = await firstValueFrom(this.relationshipsService.getRelationships({ userId }));
       this.channelMQ.emit(GET_VOICE_STATES_EVENT, userId);
@@ -276,6 +277,16 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
     }
 
     if (recipients.length > 0) this.server.to(recipients).emit(VOICE_RING_DISMISS_EVENT, payload.data);
+  }
+  
+  @SubscribeMessage(VOICE_MUTE)
+  async handleMute(@ConnectedSocket() client: Socket, @Body() producerId: string) {
+    const response = await this.sfuService.muteProducer(producerId);
+
+    if (response.status !== HttpStatus.OK) return;
+
+    
+
   }
 
   onModuleInit() {
