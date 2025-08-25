@@ -3,7 +3,7 @@ import { Server, Socket } from "socket.io";
 import * as mediasoup from "mediasoup";
 import { Room } from "./interface/room";
 import { Worker } from "mediasoup/types";
-import { CONNECT_TRANSPORT, CREATE_CONSUMER, CREATE_TRANSPORT, CLOSE_SFU_CLIENT, JOIN_ROOM, CREATE_PRODUCER, RESUME_CONSUMER, PAUSE_CONSUMER, GET_PRODUCERS, PRODUCER_JOINED, ACTIVE_SPEAKER_STATE } from "./const/events";
+import { CONNECT_TRANSPORT, CREATE_CONSUMER, CREATE_TRANSPORT, CLOSE_SFU_CLIENT, JOIN_ROOM, CREATE_PRODUCER, RESUME_CONSUMER, PAUSE_CONSUMER, GET_PRODUCERS, PRODUCER_JOINED, ACTIVE_SPEAKER_STATE, VOICE_MUTE, RESUME_PRODUCER, PAUSE_PRODUCER } from "./const/events";
 import { ConnectTransportDTO } from "./dto/connect-transport.dto";
 import { CreateProducerDTO } from "./dto/create-producer.dto";
 import { CreateConsumerDTO } from "./dto/create-consumer.dto";
@@ -33,7 +33,7 @@ io.on('connection', (socket: Socket) => {
     socket.on(JOIN_ROOM, async ({ channelId, userId }: { channelId: string, userId: string }, callback) => {
         console.log('join room', channelId);
         currentRoomId = channelId;
-        const result = await handleJoinRoom(socket, userId , currentRoomId);
+        const result = await handleJoinRoom(socket, userId, currentRoomId);
         if (result === null) socket.disconnect();
 
         callback(result);
@@ -41,9 +41,11 @@ io.on('connection', (socket: Socket) => {
     socket.on(CREATE_TRANSPORT, async (callback) => callback(await handleCreateTransport(currentRoomId)));
     socket.on(CONNECT_TRANSPORT, async (payload: ConnectTransportDTO, callback) => callback(await handleConnectTranport(currentRoomId, payload)));
     socket.on(CREATE_PRODUCER, async (payload: CreateProducerDTO, callback) => callback(await handleProduce(currentRoomId, socket, payload)));
-    socket.on(CREATE_CONSUMER, async (payload: CreateConsumerDTO, callback) => callback(await handleConsume(currentRoomId, payload)));
-    socket.on(RESUME_CONSUMER, async ({ consumerId }: { consumerId: string }, callback) => callback(await handleResumeConsumer(currentRoomId, consumerId)));
-    socket.on(PAUSE_CONSUMER, async ({ consumerId }: { consumerId: string }, callback) => callback(await handlePauseConsumer(currentRoomId, consumerId)));
+    socket.on(CREATE_CONSUMER, async (payload: CreateConsumerDTO, callback) => callback(await handleConsume(currentRoomId, payload, socket)));
+    socket.on(RESUME_CONSUMER, async () => await handleResumeConsumer(currentRoomId, socket));
+    socket.on(PAUSE_CONSUMER, async () => await handlePauseConsumer(currentRoomId, socket));
+    socket.on(PAUSE_PRODUCER, async ({ producerId }: { producerId: string }) => await handlePauseProducer(currentRoomId, producerId, socket));
+    socket.on(RESUME_PRODUCER, async ({ producerId }: { producerId: string }) => await handleResumeProducer(currentRoomId, producerId, socket));
     socket.on(CLOSE_SFU_CLIENT, async () => await handleCloseClient(currentRoomId, socket));
     socket.on(GET_PRODUCERS, async (callback) => callback(await getProducers(currentRoomId)));
     socket.on(ACTIVE_SPEAKER_STATE, async (payload: ActiveSpeakerStateDTO) => await handleUpdateActiveSpeakerState(currentRoomId, socket, payload));
@@ -51,7 +53,7 @@ io.on('connection', (socket: Socket) => {
     socket.on('reconnect', async () => console.log('client reconnects'))
 });
 
-async function handleJoinRoom(socket: Socket, userId: string,  roomId: string) {
+async function handleJoinRoom(socket: Socket, userId: string, roomId: string) {
     socket.join(roomId);
 
     if (!rooms.has(roomId)) {
@@ -75,7 +77,7 @@ async function handleUpdateActiveSpeakerState(roomId: string, socket: Socket, pa
     const peer = peers.get(socket.id);
     if (!peer) return null;
 
-    socket.broadcast.to(roomId).emit(ACTIVE_SPEAKER_STATE, {...payload, userId: peer.userId});
+    socket.broadcast.to(roomId).emit(ACTIVE_SPEAKER_STATE, { ...payload, userId: peer.userId });
 }
 
 async function handleCreateTransport(roomId: string) {
@@ -96,7 +98,6 @@ async function handleCreateTransport(roomId: string) {
 
 
     room.transports.set(transport.id, transport);
-    console.log('transport is created hahah');
     return ({
         id: transport.id,
         iceParameters: transport.iceParameters,
@@ -108,7 +109,6 @@ async function handleCreateTransport(roomId: string) {
 async function handleConnectTranport(roomId: string, payload: ConnectTransportDTO) {
     const room = rooms.get(roomId)!;
 
-    console.log('transport is connected');
     const transport = room.transports.get(payload.transportId);
     if (!transport) return null;
 
@@ -123,7 +123,7 @@ async function handleProduce(roomId: string, socket: Socket, payload: CreateProd
 
     if (!transport || !peer) return null;
 
-    const producer = await transport.produce({ kind: payload.kind, rtpParameters: payload.rtpParameters });
+    const producer = await transport.produce({ kind: payload.kind, rtpParameters: payload.rtpParameters, paused: true });
     room.producers.set(producer.id, { producer: producer, userId: peer.userId });
 
     socket.to(roomId).emit(PRODUCER_JOINED, { producerId: producer.id, userId: peer.userId } as ProducerCreatedDTO);
@@ -131,41 +131,79 @@ async function handleProduce(roomId: string, socket: Socket, payload: CreateProd
     return { id: producer.id };
 }
 
-async function handleConsume(roomId: string, payload: CreateConsumerDTO) {
+async function handleConsume(roomId: string, payload: CreateConsumerDTO, socket: Socket) {
     const room = rooms.get(roomId)!;
     const transport = room.transports.get(payload.transportId);
     const producer = room.producers.get(payload.producerId);
+    const peer = peers.get(socket.id);
 
     if (!transport || !producer) return null;
 
     if (!room.router.canConsume({ producerId: payload.producerId, rtpCapabilities: payload.rtpCapabilities })) return null;
 
-    const consumer = await transport.consume({ producerId: payload.producerId, rtpCapabilities: payload.rtpCapabilities, paused: true });
+    const consumer = await transport.consume({ producerId: payload.producerId, rtpCapabilities: payload.rtpCapabilities, paused: false });
 
     room.consumers.set(consumer.id, consumer);
-
+    peer?.consumers.set(consumer.id, consumer)
     return { id: consumer.id, producerId: payload.producerId, kind: consumer.kind, rtpParameters: consumer.rtpParameters };
 }
 
-async function handleResumeConsumer(roomId: string, consumerId: string) {
-    const room = rooms.get(roomId)!;
-    const consumer = room.consumers.get(consumerId);
-    if (!consumer) return null;
+async function handleResumeConsumer(roomId: string, socket: Socket) {
+    const peer = peers.get(socket.id);
+    if (!peer) return;
 
-    await consumer.resume();
+    const promises = [];
+    for (const consumer of Array.from(peer?.consumers.values())) {
+        promises.push(consumer.resume());
+    }
+
+    await Promise.all(promises);
+
+
+    socket.broadcast.to(roomId).emit(RESUME_CONSUMER, { userId: peer.userId });
+
+    return true;
+}
+
+async function handlePauseConsumer(roomId: string, socket: Socket) {
+    const room = rooms.get(roomId)!;
+    const peer = peers.get(socket.id);
+    if (!peer) return;
+
+    const promises = [];
+    for (const consumer of Array.from(peer?.consumers.values())) {
+        promises.push(consumer.pause());
+    }
+
+    await Promise.all(promises);
+
+
+    socket.broadcast.to(roomId).emit(PAUSE_CONSUMER, { userId: peer.userId });
 
     return true;
 }
 
-async function handlePauseConsumer(roomId: string, consumerId: string) {
-    const room = rooms.get(roomId)!;
-    const consumer = room.consumers.get(consumerId);
-    if (!consumer) return null;
+async function handlePauseProducer(roomId: string, producerId: string, socket: Socket) {
+    const room = rooms.get(roomId);
+    const producer = room?.producers.get(producerId);
+    if (!producer) return;
+    await producer.producer.pause();
 
-    await consumer.pause();
-
+    socket.broadcast.to(roomId).emit(PAUSE_PRODUCER, { userId: producer.userId });
     return true;
 }
+
+
+async function handleResumeProducer(roomId: string, producerId: string, socket: Socket) {
+    const room = rooms.get(roomId);
+    const producer = room?.producers.get(producerId);
+    if (!producer) return;
+    await producer.producer.resume();
+
+    socket.broadcast.to(roomId).emit(RESUME_PRODUCER, { userId: producer.userId });
+    return true;
+}
+
 
 async function handleCloseClient(roomId: string, socket: Socket) {
     console.log('disconnecting client');
@@ -196,6 +234,10 @@ async function handleCloseClient(roomId: string, socket: Socket) {
 async function getProducers(roomId: string) {
     const room = rooms.get(roomId)!;
     return { producers: Array.from(room.producers.values()).map(p => ({ userId: p.userId, producerId: p.producer.id })) };
+}
+
+async function muteProducer(producerId: string, roomId: string, socket: Socket) {
+    
 }
 
 server.listen(Number(process.env.PORT), () => {

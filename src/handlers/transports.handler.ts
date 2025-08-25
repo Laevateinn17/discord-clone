@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Consumer, Producer, WebRtcTransport, Router } from "mediasoup/types";
 import { createWorker } from "mediasoup";
 import { CloseSFUClientDTO } from "../dto/close-sfu-client.dto";
+import { STATUS_CODES } from "http";
 
 let worker;
 let router: Router;
@@ -151,3 +152,4 @@ export async function getChannelProducers(req: Request, res: Response) {
 
     return res.status(200).json({ producers: producers });
 }
+
