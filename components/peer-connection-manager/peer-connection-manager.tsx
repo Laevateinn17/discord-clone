@@ -5,11 +5,10 @@ import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useSocketStore } from "@/app/stores/socket-store";
 import { useGetChannelVoiceStates, useVoiceStateStore } from "@/app/stores/voice-state-store";
-import { CONNECT_TRANSPORT, CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_SEND_TRANSPORT, CREATE_RECV_TRANSPORT, VOICE_UPDATE_EVENT, RESUME_CONSUMER, CLOSE_SFU_CLIENT, JOIN_ROOM, CREATE_TRANSPORT, GET_PRODUCERS, PRODUCER_JOINED, ACTIVE_SPEAKER_STATE, PAUSE_PRODUCER, RESUME_PRODUCER, PAUSE_CONSUMER } from "@/constants/events";
+import { CONNECT_TRANSPORT, CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_SEND_TRANSPORT, CREATE_RECV_TRANSPORT, VOICE_UPDATE_EVENT, RESUME_CONSUMER, CLOSE_SFU_CLIENT, JOIN_ROOM, CREATE_TRANSPORT, GET_PRODUCERS, PRODUCER_JOINED, ACTIVE_SPEAKER_STATE, PAUSE_PRODUCER, RESUME_PRODUCER, PAUSE_CONSUMER, CLOSE_PRODUCER, CLOSE_CONSUMER } from "@/constants/events";
 import { useSocket } from "@/contexts/socket.context";
 import { VoiceEventType } from "@/enums/voice-event-type";
 import { ActiveSpeakerState } from "@/interfaces/active-speaker-state";
-import { CloseSFUClientDTO } from "@/interfaces/dto/close-sfu-client.dto";
 import { ConsumerCreatedDTO } from "@/interfaces/dto/consumer-created.dto";
 import { CreateConsumerDTO } from "@/interfaces/dto/create-consumer.dto";
 import { CreateProducerDTO } from "@/interfaces/dto/create-producer.dto";
@@ -26,7 +25,6 @@ export function PeerConnectionManager() {
     const { socket } = useSocket();
     const audioRef = useRef<HTMLAudioElement>(null);
     const { mediaSettings } = useAppSettingsStore();
-    let silenceTimer: NodeJS.Timeout | null = null;
     const { socket: peerSocket, updateActiveSpeakers, setSocket, setDevice, setSendTransport, setRecvTransport, setReady } = useMediasoupStore()
     const { user } = useCurrentUserStore();
     useEffect(() => {
@@ -41,7 +39,8 @@ export function PeerConnectionManager() {
             audio: { deviceId: { exact: mediaSettings.audioInputDeviceId } }
         }).then(stream => {
             const newAudioTrack = stream.getAudioTracks()[0];
-            producer.replaceTrack(newAudioTrack);
+            producer.track?.stop();
+            producer.replaceTrack({ track: newAudioTrack });
         });
     }, [mediaSettings.audioInputDeviceId]);
 
@@ -137,7 +136,7 @@ export function PeerConnectionManager() {
         const STOP_DELAY = 300;
 
         function checkVolume() {
-            const {isMuted, isDeafened} = useAppSettingsStore.getState().mediaSettings;
+            const { isMuted, isDeafened } = useAppSettingsStore.getState().mediaSettings;
             if (isMuted || isDeafened) {
                 requestAnimationFrame(checkVolume);
                 return;
@@ -152,7 +151,6 @@ export function PeerConnectionManager() {
 
             const now = Date.now();
             if (rms > SPEAK_THRESHOLD) {
-                console.log('rms > threasholsdlsfsjdf', speaking);
                 lastSpokeTime = now;
                 if (!speaking) {
                     speaking = true;
@@ -166,13 +164,11 @@ export function PeerConnectionManager() {
                     //     } as ActiveSpeakerState);
                     // }, 3000);
 
-                    console.log('user is speaking')
                     updateActiveSpeakers(user.id, true);
                     socket?.emit(ACTIVE_SPEAKER_STATE, { speaking: true } as ActiveSpeakerState);
                 }
             } else {
                 if (speaking && now - lastSpokeTime > STOP_DELAY) {
-                    console.log('user is not speaking')
                     speaking = false;
                     updateActiveSpeakers(user.id, false);
                     socket?.emit(ACTIVE_SPEAKER_STATE, { speaking: false } as ActiveSpeakerState);
@@ -196,7 +192,6 @@ export function PeerConnectionManager() {
 
         const onRoomJoined = async ({ rtpCapabilities }: { rtpCapabilities: RtpCapabilities }) => {
             startVAD();
-            console.log('room ', rtpCapabilities)
             const device = new Device();
             await device.load({ routerRtpCapabilities: rtpCapabilities });
             setDevice(device, channelId);
@@ -240,10 +235,10 @@ export function PeerConnectionManager() {
 
     const onCreateSendTransport = async (payload: any) => {
         const { socket, device, addProducer, channelId } = useMediasoupStore.getState();
+        const { mediaSettings } = useAppSettingsStore.getState();
         if (!device) return;
         const transport = device.createSendTransport(payload);
         transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
-            console.log('send transport connected', socket);
             try {
                 socket?.emit(CONNECT_TRANSPORT, {
                     transportId: transport.id,
@@ -253,17 +248,18 @@ export function PeerConnectionManager() {
                 console.log(err)
             }
         });
-        transport.on('connectionstatechange', (e) => console.log(e));
-
-        transport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
-            try {
-                socket?.emit(CREATE_PRODUCER, {
+        transport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
+            const payload: CreateProducerDTO = {
                     transportId: transport.id,
-                    channelId: channelId,
+                    channelId: channelId!,
                     kind,
                     rtpParameters,
-                } as CreateProducerDTO, (producerId: string) => {
-                    callback({ id: producerId });
+                    appData,
+                    paused: kind === 'audio' && mediaSettings.isMuted
+            }
+            try {
+                socket?.emit(CREATE_PRODUCER, payload, ({id}: {id: string}) => {
+                    callback({ id });
                 });
             } catch (err) {
                 console.log(err);
@@ -286,7 +282,6 @@ export function PeerConnectionManager() {
             if (!track) {
                 throw new Error('No audio track found in stream');
             }
-            console.log('producee');
             const producer = await transport.produce({ track: track });
 
             addProducer(producer.id, producer);
@@ -301,7 +296,6 @@ export function PeerConnectionManager() {
         if (!device) return;
         const transport = device.createRecvTransport(payload);
         transport.on('connect', async ({ dtlsParameters }, callback) => {
-            console.log('recv transport is connected')
             try {
                 socket?.emit(CONNECT_TRANSPORT, {
                     transportId: transport.id,
@@ -343,26 +337,29 @@ export function PeerConnectionManager() {
 
         try {
             const consumer = await recvTransport.consume({
-                id: payload.id,
                 producerId: payload.producerId,
+                id: payload.id,
                 kind: payload.kind,
-                rtpParameters: payload.rtpParameters
+                rtpParameters: payload.rtpParameters,
+                appData: payload.appData
             });
+            // if (audioRef.current) {
+            //     const stream = new MediaStream([consumer.track]);
+            //     audioRef.current.srcObject = stream;
+            //     audioRef.current.autoplay = true;
+            //     audioRef.current.muted = false;
 
-            if (audioRef.current) {
-                const stream = new MediaStream([consumer.track]);
-                audioRef.current.srcObject = stream;
-                audioRef.current.autoplay = true;
-                audioRef.current.muted = false;
-
-            } else {
-                console.error('Audio element not found');
-            }
+            // } else {
+            // console.log('b', consumer.kind)
+            //     console.error('Audio element not found');
+            // }
 
             socket?.emit(RESUME_CONSUMER, { consumerId: consumer.id }, () => {
                 consumer.resume();
             });
-
+            console.log('media tag', consumer.appData.mediaTag)
+            
+            
             addConsumer(consumer.id, consumer);
 
         } catch (error) {
@@ -372,11 +369,19 @@ export function PeerConnectionManager() {
 
     const closeClient = () => {
         const { socket, cleanup } = useMediasoupStore.getState();
-        console.log('closing client', socket);
 
         socket?.emit(CLOSE_SFU_CLIENT);
         cleanup();
     }
+
+    const handleCloseProducer = ({ producerId }: { producerId: string }) => {
+        const { consumers, removeConsumer, socket } = useMediasoupStore.getState();
+        const consumer = Array.from(consumers.values()).find(c => c.producerId === producerId);
+        if (!consumer) return;
+        removeConsumer(consumer.id);
+        socket?.emit(CLOSE_CONSUMER, {consumerId: consumer.id});
+    }
+
 
     const handleBeforeUnload = useCallback(() => {
         const socket = useSocketStore.getState().socket;
@@ -388,7 +393,6 @@ export function PeerConnectionManager() {
     }, [socket]);
 
     const onActiveSpeaker = (payload: ActiveSpeakerState) => {
-        console.log('active speaker updated');
         updateActiveSpeakers(payload.userId, payload.speaking);
     }
 
@@ -405,8 +409,10 @@ export function PeerConnectionManager() {
         if (!peerSocket) return;
         peerSocket.on(PRODUCER_JOINED, createConsumer);
         peerSocket.on(ACTIVE_SPEAKER_STATE, onActiveSpeaker);
+        peerSocket?.on(CLOSE_PRODUCER, handleCloseProducer);
 
         return () => {
+            peerSocket.removeListener(CLOSE_PRODUCER, handleCloseProducer)
             peerSocket.removeListener(PRODUCER_JOINED, createConsumer);
             peerSocket.removeListener(ACTIVE_SPEAKER_STATE, onActiveSpeaker);
         }

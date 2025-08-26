@@ -31,10 +31,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "next/navigation"
 import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useState } from "react";
-import { BsMicMuteFill, BsPinAngleFill } from "react-icons/bs";
+import { BsMicFill, BsMicMuteFill, BsPinAngleFill } from "react-icons/bs";
 import { FaCirclePlus } from "react-icons/fa6";
 import { ImPhoneHangUp } from "react-icons/im";
-import { LuHeadphoneOff } from "react-icons/lu";
+import { LuHeadphoneOff, LuScreenShare } from "react-icons/lu";
 import { MdGroupAdd } from "react-icons/md";
 import { PiPhoneCall, PiPhoneCallFill, PiVideoCamera, PiVideoCameraFill } from "react-icons/pi";
 import styled from "styled-components";
@@ -116,7 +116,7 @@ const AvatarImage = styled.img`
 function MutedIcon() {
     return (
         <div className="absolute bottom-0 right-0 rounded-full bg-[var(--status-danger)] p-1 border-[4px] border-black border-solid translate-y-1/4">
-            <BsMicMuteFill size={12}/>
+            <BsMicMuteFill size={12} />
         </div>
     )
 }
@@ -124,10 +124,27 @@ function MutedIcon() {
 function DeafenedIcon() {
     return (
         <div className="absolute bottom-0 right-0 rounded-full bg-[var(--status-danger)] p-1 border-[4px] border-black border-solid translate-y-1/4">
-            <LuHeadphoneOff size={12}/>
+            <LuHeadphoneOff size={12} />
         </div>
     )
 }
+
+const CallActionsGroup = styled.div`
+    background-color: var(--background-surface-high);
+    border: 1px solid var(--border-faint);
+    border-radius: 12px;
+    gap: 8px;
+    padding: 4px;
+    display: flex;
+`;
+
+const CallActionButton = styled.button`
+    padding: 10px;
+    border-radius: 8px;
+    &:hover {
+    background-color: var(--background-modifier-hover);
+    }
+`
 
 function Header({ channel }: { channel: Channel }) {
     const [isHovering, setIsHovering] = useState(false);
@@ -139,8 +156,9 @@ function Header({ channel }: { channel: Channel }) {
     const voiceRings = useGetChannelVoiceRing(channel.id);
     const { user } = useCurrentUserStore();
     const { emitVoiceEvent } = useVoiceEvents();
-    const { activeSpeakers } = useMediasoupStore();
-    const { mediaSettings } = useAppSettingsStore();
+    const { activeSpeakers, startScreenShare, stopScreenShare, producers, consumers} = useMediasoupStore();
+    const { mediaSettings, setMuted } = useAppSettingsStore();
+
 
     async function handleJoinVoiceCall() {
         if (voiceStates.length === 0) await ringChannelRecipients(channel.id);
@@ -154,6 +172,7 @@ function Header({ channel }: { channel: Channel }) {
         emitVoiceEvent(channel.id, VoiceEventType.VOICE_LEAVE)
     }
 
+    const screenShareProducer = Array.from(consumers.values()).filter(c => c.appData.mediaTag === 'screen'); 
     if (voiceStates.length > 0) {
         return (
             <CallHeader
@@ -183,6 +202,7 @@ function Header({ channel }: { channel: Channel }) {
                         <SearchBar channel={channel} />
                     </div>
                 </ContentHeader>
+                {screenShareProducer && <p>{screenShareProducer.length} is screen sharing</p>}
                 <div className="flex justify-center items-center gap-3 my-[16px]">
                     <AnimatePresence>
                         {voiceRings.map(vr => {
@@ -214,7 +234,7 @@ function Header({ channel }: { channel: Channel }) {
                                     {participant &&
                                         <>
                                             <AvatarImage className={`${isSpeaking ? 'ring-2 ring-green-500 p-[1px]' : ''}`} src={participant.avatarURL ? getImageURL('avatars', participant.avatarURL) : getImageURL('assets', participant.defaultAvatarURL)} />
-                                            {vs.isDeafened ? <DeafenedIcon/> : vs.isMuted && <MutedIcon/>}
+                                            {vs.isDeafened ? <DeafenedIcon /> : vs.isMuted && <MutedIcon />}
                                         </>
                                     }
                                 </motion.div>
@@ -222,20 +242,38 @@ function Header({ channel }: { channel: Channel }) {
                         })}
                     </AnimatePresence>
                 </div>
-                <div className="flex justify-center">
-                    {voiceStates.find(vs => vs.userId === user?.id) ?
-                        (<button className="p-[10px] bg-[var(--status-danger)] rounded-lg" onClick={handleLeaveVoiceCall}>
-                            <div className="px-[12px] py-[4px]">
-                                <ImPhoneHangUp className="" size={18} />
-                            </div>
-                        </button>)
-                        :
-                        (<button className="p-[10px] bg-[var(--status-positive)] rounded-lg" onClick={handleJoinVoiceCall}>
-                            <div className="px-[12px] py-[4px]">
-                                <PiPhoneCallFill className="" size={18} />
-                            </div>
-                        </button>)
+                <div className="flex justify-center items-center gap-[12px]">
+                    {voiceStates.find(vs => vs.userId === user.id) &&
+                        <CallActionsGroup>
+                            <CallActionButton className={`${mediaSettings.isMuted ? 'bg-[var(--opacity-red-12)]' : ''}`}
+                            onClick={() => setMuted(!mediaSettings.isMuted)}>
+                                <div className="h-[20px] w-[20px] flex items-center justify-center">
+                                    {mediaSettings.isMuted ? <BsMicMuteFill className="text-[var(--red-400)]" size={18} /> : <BsMicFill size={18} />}
+                                </div>
+                            </CallActionButton>
+                            <CallActionButton>
+                                <div className="h-[20px] w-[20px] flex items-center justify-center">
+                                    <LuScreenShare size={18} onClick={startScreenShare}/>
+                                </div>
+                            </CallActionButton>
+
+                        </CallActionsGroup>
                     }
+                    <div className="">
+                        {voiceStates.find(vs => vs.userId === user?.id) ?
+                            (<button className="p-[10px] bg-[var(--status-danger)] rounded-lg" onClick={handleLeaveVoiceCall}>
+                                <div className="px-[12px] py-[4px]">
+                                    <ImPhoneHangUp className="" size={18} />
+                                </div>
+                            </button>)
+                            :
+                            (<button className="p-[10px] bg-[var(--status-positive)] rounded-lg" onClick={handleJoinVoiceCall}>
+                                <div className="px-[12px] py-[4px]">
+                                    <PiPhoneCallFill className="" size={18} />
+                                </div>
+                            </button>)
+                        }
+                    </div>
                 </div>
 
             </CallHeader>

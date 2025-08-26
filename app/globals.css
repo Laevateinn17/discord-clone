@@ -18,7 +18,7 @@
   --modal-background: oklab(0.339495 0.00330827 -0.0116803);
 
   --border-container: oklab(0.678888 0.00325716 -0.011175 / 0.121569);
-  --border-faint: oklab(0.678888 0.00325716 -0.011175 / 0.0392157);
+  --border-faint:oklab(0.678888 0.00325716 -0.011175 / 0.160784);
   --border-subtle: oklab(0.678888 0.00325716 -0.011175 / 0.121569);
   --placeholder: oklab(0.541247 0.00383598 -0.0133453);
 
@@ -68,6 +68,9 @@
   --channels-default: oklab(0.75264 0.00240251 -0.00813961);
 
   --shadow-high: 0 12px 24px 0 hsl(none 0% 0% / 0.24);
+
+  --opacity-red-12: rgba(210, 45, 57, 0.12);
+  --red-400: rgb(218, 62, 68);
 }
 
 @media (prefers-color-scheme: dark) {

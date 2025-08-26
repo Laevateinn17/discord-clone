@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Device } from "mediasoup-client";
 import { Consumer, Producer, Transport } from "mediasoup-client/types";
 import { Socket } from "socket.io-client";
+import { CLOSE_PRODUCER } from "@/constants/events";
 
 interface MediasoupStoreState {
   ready: boolean;
@@ -23,6 +24,8 @@ interface MediasoupStoreState {
   removeProducer: (id: string) => void;
   addConsumer: (id: string, consumer: Consumer) => void;
   removeConsumer: (id: string) => void;
+  startScreenShare: () => Promise<boolean>;
+  stopScreenShare: () => Promise<boolean>;
   cleanup: () => void;
 }
 
@@ -40,8 +43,7 @@ export const useMediasoupStore = create<MediasoupStoreState>((set, get) => ({
     const map = new Map(get().activeSpeakers);
     if (isSpeaking) map.set(userId, true);
     else map.delete(userId);
-    console.log(map);
-    set({activeSpeakers: map});
+    set({ activeSpeakers: map });
   },
   setReady: (ready: boolean) => set({ ready }),
   setSocket: (socket: Socket) => { set({ socket }) },
@@ -62,7 +64,6 @@ export const useMediasoupStore = create<MediasoupStoreState>((set, get) => ({
     }
     set({ producers: map });
   },
-
   addConsumer: (id, consumer) => {
     const map = new Map(get().consumers);
     map.set(id, consumer);
@@ -77,9 +78,44 @@ export const useMediasoupStore = create<MediasoupStoreState>((set, get) => ({
     }
     set({ consumers: map });
   },
+  startScreenShare: async () => {
+    const { sendTransport, addProducer, socket, stopScreenShare, channelId } = get();
+    if (!sendTransport || !socket || !channelId) return false;
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        frameRate: 30,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: true
+    });
 
-  cleanup: () => {
-    console.log('cleaning up mediasoujp');
+    const videoTrack = stream.getVideoTracks()[0];
+    const producer = await sendTransport.produce({
+      track: videoTrack,
+      appData: {
+        mediaTag: "screen"
+      }
+    });
+    addProducer(producer.id, producer);
+
+    videoTrack.onended = () => { stopScreenShare(); };
+    return true;
+  },
+  stopScreenShare: async () => {
+    const { producers, removeProducer, socket } = get();
+    const screenProducer = Array.from(producers.values()).find(p => p.appData?.mediaTag === 'screen');
+    if (!screenProducer) return false;
+
+    socket?.emit(CLOSE_PRODUCER, { producerId: screenProducer.id });
+
+    removeProducer(screenProducer.id);
+    screenProducer.close();
+
+    return true;
+  },
+  cleanup: async () => {
+    await get().stopScreenShare();
     get().producers.forEach((p) => p.close());
     get().consumers.forEach((c) => c.close());
     get().sendTransport?.close();
