@@ -4,6 +4,6 @@ import { UserData } from "../user-data";
 
 export interface ClientReadyResponseDTO {
     user: UserData;
-    relationships: Relationship[];
+    relationships?: Relationship[];
     dmChannels?: Channel[];
 }

@@ -23,9 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleRefreshToken = async () => {
         const response = await refreshToken();
-
+        if (!response.success) {
+            setIsAuthorized(false);
+            router.push('/login');
+            return response;
+        }
         setIsAuthorized(true);
-
         return response;
     };
 
@@ -35,38 +38,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             async (error: any) => {
                 if (error.response.status === HttpStatusCode.Unauthorized && !error.config._retry) {
                     error.config._retry = true;
-                    try {
-                        const response = await handleRefreshToken();
-                        if (!response.success) {
-
-                            router.push("/login");
-                            return Promise.reject(error);
-                        }
-                        // if (userResponse.success) {
-                        //     setUser(userResponse.data!);
-                        // }
-
-                        return api.request(error.config);
+                    const response = await handleRefreshToken();
+                    if (!response.success) {
+                        return Promise.reject(error);
                     }
-                    catch (error: any) {
-                        router.push("/login");
-                        return error.response;
-                    }
+                    return api.request(error.config);
                 }
 
                 return Promise.reject(error);
             });
-
         handleRefreshToken();
 
-        // const addIdentityInterceptor = api.interceptors.request.use((config) => {
-        //     if (accessToken) {
-        //         config.headers.Authorization = `Bearer ${accessToken}`;
-        //     }
-        //     return config;
-        // })
-
         return () => {
+            console.log('unmountingi nterceptor')
             api.interceptors.response.eject(refreshTokenInterceptor)
             // api.interceptors.request.eject(addIdentityInterceptor);
         }

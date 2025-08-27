@@ -330,7 +330,7 @@ function AppInitializer({ children }: { children: ReactNode }) {
 
         socket?.emit(CLIENT_READY_EVENT, (data: ClientReadyResponseDTO) => {
             const currentUser = data.user;
-            const userProfiles: UserProfile[] = data.relationships.map(rel => rel.user).concat([currentUser.profile]);
+            const userProfiles: UserProfile[] = [currentUser.profile].concat(data.relationships?.map(rel => rel.user) ?? []);
             const dmRecipients = data.dmChannels ? data.dmChannels
                 .map(channel => channel.recipients.find(rep => rep.id !== currentUser.id)!)
                 .filter(Boolean) : [];

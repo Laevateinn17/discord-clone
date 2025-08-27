@@ -18,14 +18,13 @@ import { VoiceState } from "@/interfaces/voice-state";
 import { Device } from "mediasoup-client";
 import { ConsumerOptions, RtpCapabilities, Transport } from "mediasoup-client/types";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GiConsoleController } from "react-icons/gi";
 import { io } from "socket.io-client";
 
 export function PeerConnectionManager() {
     const { socket } = useSocket();
     const audioRef = useRef<HTMLAudioElement>(null);
     const { mediaSettings } = useAppSettingsStore();
-    const { socket: peerSocket, updateActiveSpeakers, setSocket, setDevice, setSendTransport, setRecvTransport, setReady } = useMediasoupStore()
+    const { socket: peerSocket, updateActiveSpeakers, setSocket, setDevice, setSendTransport, setRecvTransport, setReady, producers } = useMediasoupStore()
     const { user } = useCurrentUserStore();
     useEffect(() => {
         if (audioRef.current) audioRef.current.volume = mediaSettings.outputVolume / 100;
@@ -250,15 +249,15 @@ export function PeerConnectionManager() {
         });
         transport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
             const payload: CreateProducerDTO = {
-                    transportId: transport.id,
-                    channelId: channelId!,
-                    kind,
-                    rtpParameters,
-                    appData,
-                    paused: kind === 'audio' && mediaSettings.isMuted
+                transportId: transport.id,
+                channelId: channelId!,
+                kind,
+                rtpParameters,
+                appData,
+                paused: kind === 'audio' && mediaSettings.isMuted
             }
             try {
-                socket?.emit(CREATE_PRODUCER, payload, ({id}: {id: string}) => {
+                socket?.emit(CREATE_PRODUCER, payload, ({ id }: { id: string }) => {
                     callback({ id });
                 });
             } catch (err) {
@@ -358,8 +357,8 @@ export function PeerConnectionManager() {
                 consumer.resume();
             });
             console.log('media tag', consumer.appData.mediaTag)
-            
-            
+
+
             addConsumer(consumer.id, consumer);
 
         } catch (error) {
@@ -379,7 +378,7 @@ export function PeerConnectionManager() {
         const consumer = Array.from(consumers.values()).find(c => c.producerId === producerId);
         if (!consumer) return;
         removeConsumer(consumer.id);
-        socket?.emit(CLOSE_CONSUMER, {consumerId: consumer.id});
+        socket?.emit(CLOSE_CONSUMER, { consumerId: consumer.id });
     }
 
 
@@ -429,6 +428,22 @@ export function PeerConnectionManager() {
     }, []);
 
     return (
-        <audio ref={audioRef} autoPlay playsInline />
+        <>
+            {Array.from(useMediasoupStore.getState().consumers.values()).map((consumer) => (
+                consumer.kind === "audio" ? (
+                    <audio
+                        key={consumer.id}
+                        ref={(el) => {
+                            if (el && consumer.track) {
+                                const stream = new MediaStream([consumer.track]);
+                                el.srcObject = stream;
+                            }
+                        }}
+                        autoPlay
+                        playsInline
+                    />
+                ) : null
+            ))}
+        </>
     );
 }

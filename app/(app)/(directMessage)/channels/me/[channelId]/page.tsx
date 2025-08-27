@@ -30,7 +30,7 @@ import { dateToShortDate } from "@/utils/date.utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "next/navigation"
-import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useState } from "react";
+import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { BsMicFill, BsMicMuteFill, BsPinAngleFill } from "react-icons/bs";
 import { FaCirclePlus } from "react-icons/fa6";
 import { ImPhoneHangUp } from "react-icons/im";
@@ -156,10 +156,10 @@ function Header({ channel }: { channel: Channel }) {
     const voiceRings = useGetChannelVoiceRing(channel.id);
     const { user } = useCurrentUserStore();
     const { emitVoiceEvent } = useVoiceEvents();
-    const { activeSpeakers, startScreenShare, stopScreenShare, producers, consumers} = useMediasoupStore();
+    const { activeSpeakers, startScreenShare, stopScreenShare, producers, consumers } = useMediasoupStore();
     const { mediaSettings, setMuted } = useAppSettingsStore();
-
-
+    const screenShareConsumer = Array.from(consumers.values()).find(c => c.appData.mediaTag === 'screen');
+    const videoRef = useRef<HTMLVideoElement>(null!);
     async function handleJoinVoiceCall() {
         if (voiceStates.length === 0) await ringChannelRecipients(channel.id);
         emitVoiceEvent(channel.id, VoiceEventType.VOICE_JOIN, {
@@ -172,7 +172,13 @@ function Header({ channel }: { channel: Channel }) {
         emitVoiceEvent(channel.id, VoiceEventType.VOICE_LEAVE)
     }
 
-    const screenShareProducer = Array.from(consumers.values()).filter(c => c.appData.mediaTag === 'screen'); 
+    useEffect(() => {
+        if (screenShareConsumer && !videoRef.current.srcObject) {
+            const stream = new MediaStream([screenShareConsumer.track]);
+            videoRef.current.srcObject = stream
+        }
+    }, [screenShareConsumer])
+
     if (voiceStates.length > 0) {
         return (
             <CallHeader
@@ -202,58 +208,67 @@ function Header({ channel }: { channel: Channel }) {
                         <SearchBar channel={channel} />
                     </div>
                 </ContentHeader>
-                {screenShareProducer && <p>{screenShareProducer.length} is screen sharing</p>}
-                <div className="flex justify-center items-center gap-3 my-[16px]">
-                    <AnimatePresence>
-                        {voiceRings.map(vr => {
-                            const user = getUserProfile(vr.recipientId);
-                            return (
-                                <motion.div
-                                    key={vr.recipientId}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    {user && <AvatarImage className="brightness-50" src={user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL)} />}
-                                </motion.div>
-                            );
-                        })}
-                        {voiceStates.map((vs) => {
-                            const participant = getUserProfile(vs.userId);
-                            const isSpeaking = voiceStates.find(vs => vs.userId === user.id) && activeSpeakers.has(vs.userId);
-                            return (
-                                <motion.div
-                                    key={vs.userId}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="relative"
-                                >
-                                    {participant &&
-                                        <>
-                                            <AvatarImage className={`${isSpeaking ? 'ring-2 ring-green-500 p-[1px]' : ''}`} src={participant.avatarURL ? getImageURL('avatars', participant.avatarURL) : getImageURL('assets', participant.defaultAvatarURL)} />
-                                            {vs.isDeafened ? <DeafenedIcon /> : vs.isMuted && <MutedIcon />}
-                                        </>
-                                    }
-                                </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
+                {screenShareConsumer ?
+                    <div className="">
+                        <video
+                            key={screenShareConsumer.id}
+                            ref={videoRef}
+                            autoPlay
+                        />
+                    </div>
+                    :
+                    <div className="flex justify-center items-center gap-3 my-[16px]">
+                        <AnimatePresence>
+                            {voiceRings.map(vr => {
+                                const user = getUserProfile(vr.recipientId);
+                                return (
+                                    <motion.div
+                                        key={vr.recipientId}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        {user && <AvatarImage className="brightness-50" src={user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL)} />}
+                                    </motion.div>
+                                );
+                            })}
+                            {voiceStates.map((vs) => {
+                                const participant = getUserProfile(vs.userId);
+                                const isSpeaking = voiceStates.find(vs => vs.userId === user.id) && activeSpeakers.has(vs.userId);
+                                return (
+                                    <motion.div
+                                        key={vs.userId}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="relative"
+                                    >
+                                        {participant &&
+                                            <>
+                                                <AvatarImage className={`${isSpeaking ? 'ring-2 ring-green-500 p-[1px]' : ''}`} src={participant.avatarURL ? getImageURL('avatars', participant.avatarURL) : getImageURL('assets', participant.defaultAvatarURL)} />
+                                                {vs.isDeafened ? <DeafenedIcon /> : vs.isMuted && <MutedIcon />}
+                                            </>
+                                        }
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
+                }
                 <div className="flex justify-center items-center gap-[12px]">
                     {voiceStates.find(vs => vs.userId === user.id) &&
                         <CallActionsGroup>
                             <CallActionButton className={`${mediaSettings.isMuted ? 'bg-[var(--opacity-red-12)]' : ''}`}
-                            onClick={() => setMuted(!mediaSettings.isMuted)}>
+                                onClick={() => setMuted(!mediaSettings.isMuted)}>
                                 <div className="h-[20px] w-[20px] flex items-center justify-center">
                                     {mediaSettings.isMuted ? <BsMicMuteFill className="text-[var(--red-400)]" size={18} /> : <BsMicFill size={18} />}
                                 </div>
                             </CallActionButton>
                             <CallActionButton>
                                 <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                    <LuScreenShare size={18} onClick={startScreenShare}/>
+                                    <LuScreenShare size={18} onClick={startScreenShare} />
                                 </div>
                             </CallActionButton>
 
