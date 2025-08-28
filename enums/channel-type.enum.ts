@@ -4,6 +4,7 @@ export enum ChannelType {
     Voice = 1,
     Category = 2,
     DM = 3,
+    Group = 4,
 }
 
 export const ChannelTypeString = {
@@ -11,4 +12,5 @@ export const ChannelTypeString = {
     [ChannelType.Voice]: "Voice",
     [ChannelType.Category]: "Category",
     [ChannelType.DM]: "Direct Message",
+    [ChannelType.Group]: "Group"
 }

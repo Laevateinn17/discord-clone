@@ -19,12 +19,30 @@ export const useVoiceStateStore = create<VoiceStateStoreState>((set, get) => ({
     updateVoiceState: (voiceState: VoiceState) => {
         set(state => {
             const newVoiceStates = new Map(state.voiceStates);
-            const oldVoiceState = newVoiceStates.get(getVoiceStateKey(voiceState.channelId, voiceState.userId));
+            const oldVoiceState = newVoiceStates.get(
+                getVoiceStateKey(voiceState.channelId, voiceState.userId)
+            );
 
-            newVoiceStates.set(getVoiceStateKey(voiceState.channelId, voiceState.userId), {
-                ...oldVoiceState,
-                ...voiceState
-            });
+            let merged: VoiceState;
+
+            if (oldVoiceState) {
+                merged = new VoiceState(
+                    voiceState.userId ?? oldVoiceState.userId,
+                    voiceState.channelId ?? oldVoiceState.channelId,
+                    voiceState.isMuted ?? oldVoiceState.isMuted,
+                    voiceState.isDeafened ?? oldVoiceState.isDeafened
+                );
+            } else {
+                merged = new VoiceState(
+                    voiceState.userId,
+                    voiceState.channelId,
+                    voiceState.isMuted,
+                    voiceState.isDeafened
+                );
+            }
+
+            newVoiceStates.set(getVoiceStateKey(merged.channelId, merged.userId), merged);
+
             return { voiceStates: newVoiceStates };
         });
 
@@ -39,7 +57,7 @@ export const useVoiceStateStore = create<VoiceStateStoreState>((set, get) => ({
 
             return { voiceStates: newVoiceStates };
         })
-    }, 
+    },
     getVoiceState: (channelId: string, userId: string) => {
         return get().voiceStates.get(getVoiceStateKey(channelId, userId));
     },
@@ -50,9 +68,9 @@ export function getVoiceStateKey(channelId: string, userId: string) {
 }
 
 export function useGetChannelVoiceStates(channelId: string): VoiceState[] {
-  const voiceStates = useVoiceStateStore.getState().voiceStates;
+    const voiceStates = useVoiceStateStore.getState().voiceStates;
 
-  return Array.from(voiceStates.entries())
-    .filter(([key]) => key.startsWith(channelId))
-    .map(([, state]) => state);
+    return Array.from(voiceStates.entries())
+        .filter(([key]) => key.startsWith(channelId))
+        .map(([, state]) => state);
 }

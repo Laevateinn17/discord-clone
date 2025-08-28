@@ -1,429 +1,27 @@
 "use client"
-import { ContentFooter } from "@/app/(app)/content-footer";
-import ContentHeader from "@/app/(app)/content-header";
-import { useVoiceEvents } from "@/app/(auth)/hooks/socket-events";
-import { useAppSettingsStore } from "@/app/stores/app-settings-store";
-import { useAudioStore } from "@/app/stores/audio-store";
 import { useChannelsStore, useGetChannel } from "@/app/stores/channels-store";
 import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import { useIsUserTyping, useTypingUsersFromChannel, useUserTypingStore } from "@/app/stores/user-typing-store";
-import { useGetChannelVoiceRing } from "@/app/stores/voice-ring-state-store";
-import { useGetChannelVoiceStates, useVoiceStateStore } from "@/app/stores/voice-state-store";
 import { LoadingIndicator } from "@/components/loading-indicator/loading-indicator";
 import MessageItem from "@/components/message-item/message-item";
-import Tooltip from "@/components/tooltip/tooltip";
-import UserAvatar from "@/components/user-avatar/user-avatar";
 import { MESSAGES_CACHE } from "@/constants/cache";
 import { MessageStatus } from "@/enums/message-status.enum";
-import { VoiceEventType } from "@/enums/voice-event-type";
 import { useMessagesQuery } from "@/hooks/queries";
 import { Channel } from "@/interfaces/channel";
 import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
 import { Message } from "@/interfaces/message";
-import { UserProfile } from "@/interfaces/user-profile";
-import { VoiceState } from "@/interfaces/voice-state";
-import { ringChannelRecipients, sendTypingStatus } from "@/services/channels/channels.service";
+import { sendTypingStatus } from "@/services/channels/channels.service";
 import { acknowledgeMessage, sendMessage } from "@/services/messages/messages.service";
-import { getImageURL } from "@/services/storage/storage.service";
 import { dateToShortDate } from "@/utils/date.utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "next/navigation"
 import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
-import { BsMicFill, BsMicMuteFill, BsPinAngleFill } from "react-icons/bs";
 import { FaCirclePlus } from "react-icons/fa6";
-import { ImPhoneHangUp } from "react-icons/im";
-import { LuHeadphoneOff, LuScreenShare, LuScreenShareOff } from "react-icons/lu";
-import { MdGroupAdd } from "react-icons/md";
-import { PiPhoneCall, PiPhoneCallFill, PiVideoCamera, PiVideoCameraFill } from "react-icons/pi";
 import styled from "styled-components";
+import { DMChannelHeader } from "./channel-header";
 
-const UserProfileHeader = styled.div`
-    display: flex;
-    align-items: center;
-    max-height: auto;
-    flex-grow: 1;
-`
-
-const UserProfileHeaderText = styled.p`
-    color: var(--text-default);
-    line-height: 20px;
-    font-weight: 500;
-    position: relative;
-`
-
-const UserProfileHeaderTextContainer = styled.div`
-    position: relative;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    margin-left: 4px;
-    margin-right: 8px;
-    cursor: pointer;
-`
-
-const HeaderActionContainer = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
-    color: var(--interactive-normal);
-
-    &:hover {
-        color: var(--interactive-hover);
-    }
-`
-
-
-const CallHeader = styled.div`
-    display: flex;
-    width: 100%;
-    background: black;
-    flex-direction: column;
-    overflow: hidden;
-`
-
-function HeaderActionButton({ children, onClick, tooltipText }: { children: ReactNode, onClick?: () => any, tooltipText: string }) {
-    const [isHovering, setIsHovering] = useState(false);
-
-
-    return (
-        <HeaderActionContainer
-            onMouseEnter={() => setIsHovering(true)}
-            onMouseLeave={() => setIsHovering(false)}
-            onClick={onClick}>
-            {children}
-            <Tooltip position="bottom" show={isHovering} text={tooltipText} fontSize="14px" />
-        </HeaderActionContainer>
-    )
-}
-
-function SearchBar({ channel }: { channel: Channel }) {
-    return <input />;
-}
-
-const AvatarImage = styled.img`
-    width: 80px;
-    height: 80px;
-    cursor: pointer;
-    border-radius: 50%;
-`
-
-function MutedIcon() {
-    return (
-        <div className="absolute bottom-0 right-0 rounded-full bg-[var(--status-danger)] p-1 border-[4px] border-black border-solid translate-y-1/4">
-            <BsMicMuteFill size={12} />
-        </div>
-    )
-}
-
-function DeafenedIcon() {
-    return (
-        <div className="absolute bottom-0 right-0 rounded-full bg-[var(--status-danger)] p-1 border-[4px] border-black border-solid translate-y-1/4">
-            <LuHeadphoneOff size={12} />
-        </div>
-    )
-}
-
-const CallActionsGroup = styled.div`
-    background-color: var(--background-surface-high);
-    border: 1px solid var(--border-faint);
-    border-radius: 12px;
-    gap: 8px;
-    padding: 4px;
-    display: flex;
-`;
-
-const CallActionButton = styled.button`
-    padding: 10px;
-    border-radius: 8px;
-    &:hover {
-    background-color: var(--background-modifier-hover);
-    }
-`
-
-const HeaderBottomGradient = styled.div`
-    background: linear-gradient(
-        180deg,
-        rgba(0, 0, 0, 0) 0%,
-        rgba(0, 0, 0, 0) 20%,
-        rgba(0, 0, 0, 0.03) 40%,
-        rgba(0, 0, 0, 0.08) 55%,
-        rgba(0, 0, 0, 0.18) 70%,
-        rgba(0, 0, 0, 0.35) 85%,
-        rgba(0, 0, 0, 0.6) 100%
-    );
-    position: absolute;
-    height: 160px;
-    width: 100%;
-    bottom: 0;
-    display: flex;
-    justify-content: center;
-    align-items: end;
-    pointer-events: none;
-    
-    opacity: 0;
-    transform: translateY(20%);
-    transition: all 200ms ease-in-out;
-    
-    & * {
-        pointer-events: auto;
-    }
-    
-    &.active {
-        opacity: 1;
-        transform: translateY(0);
-    }
-`
-
-function Header({ channel }: { channel: Channel }) {
-    const [isHovering, setIsHovering] = useState(false);
-    const [isHoveringName, setIsHoveringName] = useState(false);
-    const { getUserProfile } = useUserProfileStore();
-    const recipient: UserProfile = getUserProfile(channel.recipients[0].id) || channel.recipients[0];
-    const isTyping = useIsUserTyping(channel.id, recipient.id);
-    const voiceStates = useGetChannelVoiceStates(channel.id);
-    const voiceRings = useGetChannelVoiceRing(channel.id);
-    const { user } = useCurrentUserStore();
-    const { emitVoiceEvent } = useVoiceEvents();
-    const { activeSpeakers, startScreenShare, stopScreenShare, producers, consumers } = useMediasoupStore();
-    const { mediaSettings, setMuted } = useAppSettingsStore();
-    const screenShareConsumer = Array.from(consumers.values()).find(c => c.appData.mediaTag === 'screen');
-    const screenShareProducer = Array.from(producers.values()).find(c => c.appData.mediaTag === 'screen');
-
-    const videoRef = useRef<HTMLVideoElement>(null!);
-    async function handleJoinVoiceCall() {
-        if (voiceStates.length === 0) await ringChannelRecipients(channel.id);
-        emitVoiceEvent(channel.id, VoiceEventType.VOICE_JOIN, {
-            isMuted: mediaSettings.isMuted,
-            isDeafened: mediaSettings.isDeafened
-        } as VoiceState)
-    }
-
-    async function handleLeaveVoiceCall() {
-        emitVoiceEvent(channel.id, VoiceEventType.VOICE_LEAVE)
-    }
-
-    useEffect(() => {
-        if (screenShareConsumer) {
-            const stream = new MediaStream([screenShareConsumer.track]);
-            videoRef.current.srcObject = stream
-        }
-    }, [screenShareConsumer]);
-
-    useEffect(() => {
-        if (screenShareProducer) {
-            const stream = new MediaStream([screenShareProducer.track!]);
-            videoRef.current.srcObject = stream;
-        }
-    }, [screenShareProducer])
-
-
-    if (voiceStates.length > 0) {
-        return (
-            <CallHeader
-                className="relative"
-                onMouseEnter={() => setIsHovering(true)}
-                onMouseLeave={() => setIsHovering(false)}>
-                <ContentHeader hide={!isHovering}>
-                    <UserProfileHeader>
-                        <div className="ml-[4px] mr-[8px]">
-                            <UserAvatar user={recipient} size="24" isTyping={isTyping} />
-                        </div>
-                        <UserProfileHeaderTextContainer onMouseEnter={() => setIsHoveringName(true)} onMouseLeave={() => setIsHoveringName(false)}>
-                            <UserProfileHeaderText>
-                                {recipient.displayName}
-                            </UserProfileHeaderText>
-                            <Tooltip
-                                position="bottom"
-                                show={isHoveringName}
-                                text={recipient.username}
-                                fontSize="14px" />
-                        </UserProfileHeaderTextContainer>
-                    </UserProfileHeader>
-                    <div className="flex items-center text-[var(--interactive-normal)] gap-[8px]">
-                        <HeaderActionButton tooltipText="Join Voice Call" onClick={handleJoinVoiceCall}><PiPhoneCallFill size={20} /></HeaderActionButton>
-                        <HeaderActionButton tooltipText="Start Video Call"><PiVideoCameraFill size={20} /></HeaderActionButton>
-                        <HeaderActionButton tooltipText="Pinned Message"><BsPinAngleFill size={20} /></HeaderActionButton>
-                        <HeaderActionButton tooltipText="Add Friends to DM"><MdGroupAdd size={20} /></HeaderActionButton>
-                        <SearchBar channel={channel} />
-                    </div>
-                </ContentHeader>
-                {screenShareProducer || screenShareConsumer ?
-                    <div className="flex items-center justify-center relative">
-                        {screenShareProducer ?
-                            <video
-                                key={screenShareProducer.id}
-                                ref={videoRef}
-                                className="w-1/2 bg-black"
-                                autoPlay
-                            />
-                            :
-                            <video
-                                key={screenShareConsumer!.id}
-                                ref={videoRef}
-                                className="w-1/2 bg-black"
-                                autoPlay
-                            />
-                        }
-                    </div>
-                    :
-                    <div className="flex justify-center items-center gap-3 my-[16px]">
-                        <AnimatePresence>
-                            {voiceRings.map(vr => {
-                                const user = getUserProfile(vr.recipientId);
-                                return (
-                                    <motion.div
-                                        key={vr.recipientId}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        {user && <AvatarImage className="brightness-50" src={user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL)} />}
-                                    </motion.div>
-                                );
-                            })}
-                            {voiceStates.map((vs) => {
-                                const participant = getUserProfile(vs.userId);
-                                const isSpeaking = voiceStates.find(vs => vs.userId === user.id) && activeSpeakers.has(vs.userId);
-                                return (
-                                    <motion.div
-                                        key={vs.userId}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="relative"
-                                    >
-                                        {participant &&
-                                            <>
-                                                <AvatarImage className={`${isSpeaking ? 'ring-2 ring-green-500 p-[1px]' : ''}`} src={participant.avatarURL ? getImageURL('avatars', participant.avatarURL) : getImageURL('assets', participant.defaultAvatarURL)} />
-                                                {vs.isDeafened ? <DeafenedIcon /> : vs.isMuted && <MutedIcon />}
-                                            </>
-                                        }
-                                    </motion.div>
-                                );
-                            })}
-                        </AnimatePresence>
-                    </div>
-                }
-                {(screenShareConsumer || screenShareProducer) ?
-                    <HeaderBottomGradient className={`${isHovering ? 'active' : ''}`}>
-                        <ContentFooter hide={false}>
-                            {voiceStates.find(vs => vs.userId === user.id) &&
-                                <CallActionsGroup>
-                                    <CallActionButton className={`${mediaSettings.isMuted ? 'bg-[var(--opacity-red-12)]' : ''}`}
-                                        onClick={() => setMuted(!mediaSettings.isMuted)}>
-                                        <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                            {mediaSettings.isMuted ? <BsMicMuteFill className="text-[var(--red-400)]" size={18} /> : <BsMicFill size={18} />}
-                                        </div>
-                                    </CallActionButton >
-                                    {screenShareProducer ?
-                                        <CallActionButton onClick={stopScreenShare} className="bg-[var(--opacity-green-12)]">
-                                            <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                                <LuScreenShareOff className="text-[var(--green-300)]" size={18} />
-                                            </div >
-                                        </CallActionButton >
-                                        :
-                                        <CallActionButton onClick={startScreenShare}>
-                                            <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                                <LuScreenShare size={18} />
-                                            </div >
-                                        </CallActionButton >
-                                    }
-
-                                </CallActionsGroup >
-                            }
-                            <div className="">
-                                {voiceStates.find(vs => vs.userId === user?.id) ?
-                                    (<button className="p-[10px] bg-[var(--status-danger)] rounded-lg" onClick={handleLeaveVoiceCall}>
-                                        <div className="px-[12px] py-[4px]">
-                                            <ImPhoneHangUp className="" size={18} />
-                                        </div>
-                                    </button>)
-                                    :
-                                    (<button className="p-[10px] bg-[var(--status-positive)] rounded-lg" onClick={handleJoinVoiceCall}>
-                                        <div className="px-[12px] py-[4px]">
-                                            <PiPhoneCallFill className="" size={18} />
-                                        </div>
-                                    </button>)
-                                }
-                            </div>
-                        </ContentFooter >
-                    </HeaderBottomGradient >
-                    :
-                    <ContentFooter hide={false}>
-                        {voiceStates.find(vs => vs.userId === user.id) &&
-                            <CallActionsGroup>
-                                <CallActionButton className={`${mediaSettings.isMuted ? 'bg-[var(--opacity-red-12)]' : ''}`}
-                                    onClick={() => setMuted(!mediaSettings.isMuted)}>
-                                    <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                        {mediaSettings.isMuted ? <BsMicMuteFill className="text-[var(--red-400)]" size={18} /> : <BsMicFill size={18} />}
-                                    </div>
-                                </CallActionButton>
-                                <CallActionButton>
-                                    <div className="h-[20px] w-[20px] flex items-center justify-center">
-                                        <LuScreenShare size={18} onClick={startScreenShare} />
-                                    </div>
-                                </CallActionButton>
-
-                            </CallActionsGroup>
-                        }
-                        <div className="">
-                            {voiceStates.find(vs => vs.userId === user?.id) ?
-                                (<button className="p-[10px] bg-[var(--status-danger)] rounded-lg" onClick={handleLeaveVoiceCall}>
-                                    <div className="px-[12px] py-[4px]">
-                                        <ImPhoneHangUp className="" size={18} />
-                                    </div>
-                                </button>)
-                                :
-                                (<button className="p-[10px] bg-[var(--status-positive)] rounded-lg" onClick={handleJoinVoiceCall}>
-                                    <div className="px-[12px] py-[4px]">
-                                        <PiPhoneCallFill className="" size={18} />
-                                    </div>
-                                </button>)
-                            }
-                        </div>
-                    </ContentFooter>
-                }
-            </CallHeader >
-        )
-    }
-
-    return (
-        <ContentHeader>
-            <UserProfileHeader>
-                <div className="ml-[4px] mr-[8px]">
-                    <UserAvatar user={recipient} size="24" isTyping={isTyping} />
-                </div>
-                <UserProfileHeaderTextContainer onMouseEnter={() => setIsHoveringName(true)} onMouseLeave={() => setIsHoveringName(false)}>
-                    <UserProfileHeaderText>
-                        {recipient.displayName}
-                    </UserProfileHeaderText>
-                    <Tooltip
-                        position="bottom"
-                        show={isHoveringName}
-                        text={recipient.username}
-                        fontSize="14px" />
-                </UserProfileHeaderTextContainer>
-            </UserProfileHeader>
-            <div className="flex items-center text-[var(--interactive-normal)] gap-[8px]">
-                <HeaderActionButton tooltipText={"Start Voice Call"} onClick={handleJoinVoiceCall}><PiPhoneCallFill size={20} /></HeaderActionButton>
-                <HeaderActionButton tooltipText="Start Video Call"><PiVideoCameraFill size={20} /></HeaderActionButton>
-                <HeaderActionButton tooltipText="Pinned Message"><BsPinAngleFill size={20} /></HeaderActionButton>
-                <HeaderActionButton tooltipText="Add Friends to DM"><MdGroupAdd size={20} /></HeaderActionButton>
-                <SearchBar channel={channel} />
-            </div>
-        </ContentHeader>
-
-    )
-}
 
 const ChatContainer = styled.div`
     display: flex;
@@ -458,7 +56,6 @@ const ChatInputWrapper = styled.div`
     padding: 0 8px;
     margin-bottom: 24px;
     position: relative;
-    // max-height: 40vh;
 `
 
 const InputContainer = styled.div`
@@ -627,7 +224,6 @@ export default function Page() {
     });
 
     const typingUsers = useTypingUsersFromChannel(channelId as string);
-    // const [lastMessage, setLastMessage] = useState<Message | null>(null);
 
     async function handleAcknowledgeMessage(channelId: string, messageId: string) {
         if (!channel) return;
@@ -751,7 +347,7 @@ export default function Page() {
 
     return (
         <div className="h-full flex flex-col">
-            <Header channel={channel} />
+            <DMChannelHeader channel={channel} />
             <ChatContainer>
                 <MessagesContainer>
                     {groupedMessages && Object.keys(groupedMessages).map((key) => {

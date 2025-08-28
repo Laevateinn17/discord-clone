@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { Device } from "mediasoup-client";
 import { Consumer, Producer, Transport } from "mediasoup-client/types";
 import { Socket } from "socket.io-client";
-import { CLOSE_PRODUCER } from "@/constants/events";
+import { CLOSE_PRODUCER, PAUSE_CONSUMER, RESUME_CONSUMER } from "@/constants/events";
 
 interface MediasoupStoreState {
   ready: boolean;
@@ -21,11 +21,13 @@ interface MediasoupStoreState {
   setSendTransport: (transport: Transport) => void;
   setRecvTransport: (transport: Transport) => void;
   addProducer: (id: string, producer: Producer) => void;
-  removeProducer: (id: string) => void;
-  addConsumer: (id: string, consumer: Consumer) => void;
-  removeConsumer: (id: string) => void;
+  removeProducer: (consumerId: string) => void;
+  addConsumer: (consumerId: string, consumer: Consumer) => void;
+  removeConsumer: (consumerId: string) => void;
   startScreenShare: () => Promise<boolean>;
   stopScreenShare: () => Promise<boolean>;
+  resumeConsumer: (consumerId: string) => void;
+  pauseConsumer: (consumerId: string) => void;
   cleanup: () => void;
 }
 
@@ -77,6 +79,18 @@ export const useMediasoupStore = create<MediasoupStoreState>((set, get) => ({
       map.delete(id);
     }
     set({ consumers: map });
+  },
+  pauseConsumer: (consumerId: string) => {
+    const {socket, consumers} = get();
+    const consumer = consumers.get(consumerId);
+    if (!consumer || !socket) return;
+    socket.emit(PAUSE_CONSUMER, {consumerId: consumer.id}, () => consumer.pause());
+  },
+  resumeConsumer: (consumerId: string) => {
+    const {socket, consumers} = get();
+    const consumer = consumers.get(consumerId);
+    if (!consumer || !socket) return;
+    socket.emit(RESUME_CONSUMER, {consumerId: consumer.id}, () => consumer.resume());
   },
   startScreenShare: async () => {
     const { sendTransport, addProducer, socket, stopScreenShare, channelId } = get();

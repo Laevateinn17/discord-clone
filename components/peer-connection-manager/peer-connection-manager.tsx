@@ -352,11 +352,12 @@ export function PeerConnectionManager() {
             // console.log('b', consumer.kind)
             //     console.error('Audio element not found');
             // }
-
-            socket?.emit(RESUME_CONSUMER, { consumerId: consumer.id }, () => {
-                consumer.resume();
-            });
-            console.log('media tag', consumer.appData.mediaTag)
+            if (consumer.appData?.mediaTag !== 'screen') {
+                socket?.emit(RESUME_CONSUMER, { consumerId: consumer.id }, () => {
+                    consumer.resume();
+                });
+                console.log('media tag', consumer.appData.mediaTag)
+            }
 
 
             addConsumer(consumer.id, consumer);

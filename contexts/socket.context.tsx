@@ -15,10 +15,6 @@ import { VoiceState } from "@/interfaces/voice-state";
 import { getVoiceStateKey, useGetChannelVoiceStates, useVoiceStateStore } from "@/app/stores/voice-state-store";
 import { VoiceEventDTO } from "@/interfaces/dto/voice-event.dto";
 import { VoiceEventType } from "@/enums/voice-event-type";
-import { VoiceRingState } from "@/interfaces/voice-ring-state";
-import { getVoiceRingKey, useVoiceRingStateStore } from "@/app/stores/voice-ring-state-store";
-import { useAudioStore } from "@/app/stores/audio-store";
-import { useAppSettingsStore } from "@/app/stores/app-settings-store";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useSocketStore } from "@/app/stores/socket-store";
 import { useUserPresenceStore } from "@/app/stores/user-presence-store";
@@ -114,10 +110,9 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     }, [removeVoiceState, updateVoiceState]);
 
     const handleGetVoiceStates = useCallback((payload: VoiceState[]) => {
-        console.log('received voice statesa');
         const map: Map<string, VoiceState> = new Map();
         for (const vs of payload) {
-            map.set(getVoiceStateKey(vs.channelId, vs.userId), vs);
+            map.set(getVoiceStateKey(vs.channelId, vs.userId), new VoiceState(vs.userId, vs.channelId, vs.isMuted, vs.isDeafened));
         }
         setVoiceStates(map);
     }, [setVoiceStates]);
