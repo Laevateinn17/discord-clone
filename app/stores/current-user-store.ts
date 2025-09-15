@@ -8,5 +8,5 @@ interface CurrentUserStoreState {
 
 export const useCurrentUserStore = create<CurrentUserStoreState>((set, get) => ({
     user: null!,
-    setCurrentUser: user => {console.log('setting user'); set({ user }) }
+    setCurrentUser: user => set({ user })
 }))

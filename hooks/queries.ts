@@ -101,7 +101,7 @@ export function useMessagesQuery(channelId: string) {
         queryFn: async () => {
             const res = await getMessages(channelId);
             if (!res.success) {
-                throw Error();
+                return [];
             }
 
             const data = res.data!.map(m => ({ ...m, createdAt: new Date(m.createdAt), updatedAt: new Date(m.updatedAt) }) as Message)

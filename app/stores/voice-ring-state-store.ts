@@ -28,7 +28,6 @@ export const useVoiceRingStateStore = create<VoiceRingStoreState>((set, get) => 
             const key = getVoiceRingKey(channelId, recipientId);
             const vs = newVoiceRings.get(key);
             if (vs) {
-                console.log('deleting voice ring');
                 newVoiceRings.delete(key);
             }
 

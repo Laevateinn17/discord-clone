@@ -113,6 +113,32 @@ export async function sendTypingStatus(channelId: string) {
     })
 }
 
+export async function deleteChannel(channelId: string) {
+    try {
+        const response = await api.delete(`${CHANNEL_ENDPOINT}/${channelId}`, {
+            withCredentials: true
+        });
+        if (response.status === HttpStatusCode.NoContent) {
+            return Response.Success<null>({
+                data: response.data.data,
+                message: response.data.message
+            });
+        }
+        return Response.Failed<null>({
+            message: response.data.message
+        });
+    } catch (error) {
+        if (error instanceof AxiosError)
+            return Response.Failed<null>({
+                message: error.response ? error.response.data.message as string : "An unknown Error occurred"
+            });
+    }
+
+    return Response.Failed<null>({
+        message: "An unknown error occurred."
+    })
+}
+
 export async function ringChannelRecipients(channelId: string) {
     try {
         const response = await api.post(`${CHANNEL_ENDPOINT}/${channelId}/call/ring`, { channelId: channelId }, {

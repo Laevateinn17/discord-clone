@@ -53,3 +53,6 @@ export const VOICE_MUTE = 'voice_mute';
 export const VOICE_DEAFEN = 'voice_deafened';
 export const CLOSE_PRODUCER = 'close_producer';
 export const CLOSE_CONSUMER = 'close_consumer';
+
+export const CHANNEL_CREATED = 'channel_created';
+export const CHANNEL_DELETED = 'channel_deleted';

@@ -94,7 +94,6 @@ export const useMediasoupStore = create<MediasoupStoreState>((set, get) => ({
   },
   startScreenShare: async () => {
     const { sendTransport, addProducer, socket, stopScreenShare, channelId } = get();
-    console.log(sendTransport, socket, channelId);
     if (!sendTransport || !socket || !channelId) return false;
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {

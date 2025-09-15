@@ -21,6 +21,7 @@ import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, use
 import { FaCirclePlus } from "react-icons/fa6";
 import styled from "styled-components";
 import { DMChannelHeader } from "./channel-header";
+import { LINE_HEIGHT, MAX_LINE_COUNT, VERTICAL_PADDING } from "@/constants/user-interface";
 
 
 const ChatContainer = styled.div`
@@ -148,10 +149,6 @@ const LastReadDividerLine = styled.div`
     }
 `
 
-
-const VERTICAL_PADDING = 32;
-const LINE_HEIGHT = 22;
-const MAX_LINE_COUNT = 20;
 
 
 function TextInputItem({ channel, onSubmit }: { channel: Channel, onSubmit: (message: CreateMessageDto) => any }) {

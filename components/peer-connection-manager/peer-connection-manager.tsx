@@ -305,7 +305,6 @@ export function PeerConnectionManager() {
             }
         });
         setRecvTransport(transport);
-        transport.on('connectionstatechange', (e) => console.log('recv transport', e));
 
         if (channelId) {
             socket?.emit(GET_PRODUCERS, onGetChannelProducers);
@@ -316,7 +315,6 @@ export function PeerConnectionManager() {
     const createConsumer = async (payload: ProducerCreatedDTO) => {
         const { socket, device, recvTransport } = useMediasoupStore.getState();
         const user = useCurrentUserStore.getState().user;
-        console.log(device, recvTransport);
         if (!device || !recvTransport) return;
         if (payload.userId !== user?.id) {
             socket?.emit(CREATE_CONSUMER, {
@@ -356,7 +354,6 @@ export function PeerConnectionManager() {
                 socket?.emit(RESUME_CONSUMER, { consumerId: consumer.id }, () => {
                     consumer.resume();
                 });
-                console.log('media tag', consumer.appData.mediaTag)
             }
 
 
@@ -387,7 +384,6 @@ export function PeerConnectionManager() {
         const socket = useSocketStore.getState().socket;
         const { socket: peerSocket, channelId } = useMediasoupStore.getState();
         socket?.emit(VOICE_UPDATE_EVENT, { channelId, type: VoiceEventType.VOICE_LEAVE });
-        console.log(socket, peerSocket, channelId);
 
         closeClient();
     }, [socket]);
@@ -423,7 +419,6 @@ export function PeerConnectionManager() {
     useEffect(() => {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
-            console.log('beforeunload listener removed');
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, []);

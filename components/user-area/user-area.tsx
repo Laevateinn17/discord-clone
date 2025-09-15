@@ -16,17 +16,19 @@ import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import { useCurrentUserQuery } from "@/hooks/queries";
 import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { useAppSettingsStore } from "@/app/stores/app-settings-store";
+import { useModal } from "@/contexts/modal.context";
+import { ModalType } from "@/enums/modal-type.enum";
 
 interface UserAreaProps {
-    openSettingsHandler: () => any
 }
-export default function UserArea({ openSettingsHandler }: UserAreaProps) {
+export default function UserArea() {
     const { user } = useCurrentUserStore();
     const [isHovering, setIsHovering] = useState(false);
     const [showProfileCard, setShowProfileCard] = useState(false);
     const profileCardRef = useRef<HTMLDivElement>(null!)
     const { getUserProfile } = useUserProfileStore();
     const { mediaSettings, setMuted, setDeafened } = useAppSettingsStore();
+    const { openModal } = useModal();
 
     useEffect(() => {
         function handleOutsideClick(e: MouseEvent) {
@@ -68,7 +70,7 @@ export default function UserArea({ openSettingsHandler }: UserAreaProps) {
                     onClick={() => setMuted(!mediaSettings.isMuted)}
                 >
                     <div className={`${styles["icon-container"]} ${mediaSettings.isMuted || mediaSettings.isDeafened ? 'text-[var(--text-danger)]' : ''}`}>
-                       {mediaSettings.isMuted || mediaSettings.isDeafened ? <BsMicMuteFill size={18}/> : <BsMicFill size={18} />}
+                        {mediaSettings.isMuted || mediaSettings.isDeafened ? <BsMicMuteFill size={18} /> : <BsMicFill size={18} />}
                     </div>
                 </TransparentButton>
                 <TransparentButton
@@ -78,11 +80,11 @@ export default function UserArea({ openSettingsHandler }: UserAreaProps) {
                     onClick={() => setDeafened(!mediaSettings.isDeafened)}
                 >
                     <div className={`${styles["icon-container"]} ${mediaSettings.isDeafened ? 'text-[var(--text-danger)]' : ''}`}>
-                        {mediaSettings.isDeafened ? <LuHeadphoneOff size={18}/> : <LuHeadphones size={18} />}
+                        {mediaSettings.isDeafened ? <LuHeadphoneOff size={18} /> : <LuHeadphones size={18} />}
                     </div>
                 </TransparentButton>
                 <TransparentButton
-                    onClick={openSettingsHandler}
+                    onClick={() => openModal(ModalType.SETTINGS)}
                     tooltipSize="14px"
                     tooltip="User Settings"
                     tooltipPosition="top">

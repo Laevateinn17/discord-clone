@@ -389,7 +389,7 @@ function AppInitializer({ children }: { children: ReactNode }) {
                     </video>
                     <div className="text-center top-[-20px] relative">
                         <p className="text-[12px] leading-[16px] mb-[8px] uppercase font-semibold">Did you know</p>
-                        <p>I hate nig</p>
+                        <p>I dont know.</p>
                     </div>
                     <div className="absolute bottom-0 pb-[32px] text-center ">
                         <p className="text-[14px] mb-[8px]">Connection problems? Let us know!</p>
@@ -406,15 +406,6 @@ function AppInitializer({ children }: { children: ReactNode }) {
 
 export default function HomeLayout({ children, sidebar }: HomeLayoutProps) {
     const { isAuthorized } = useAuth();
-    const [isSettingOpen, setIsSettingOpen] = useState(false);
-    useEffect(() => {
-        console.log("app layout mounts");
-
-        return () => {
-            console.log("app layout dismount");
-        }
-    }, []);
-
 
     if (!isAuthorized) {
         return <div></div>;
@@ -429,18 +420,17 @@ export default function HomeLayout({ children, sidebar }: HomeLayoutProps) {
                     <ContextMenuProvider>
                         <div className={styles["page"]}>
                             <Fragment>
-                                <div className={`${styles["main-content"]} ${isSettingOpen ? styles["main-content-hidden"] : ""}`}>
+                                <div className={`${styles["main-content"]}`}>
                                     <GuildListSidebar />
                                     <div className="absolute bottom-[8px] left-[8px] w-[358px]">
-                                        <UserArea openSettingsHandler={() => setIsSettingOpen(true)} />
+                                        <UserArea />
                                     </div>
                                     {children}
                                 </div>
-                                <SettingsPage show={isSettingOpen} closeSettingsHandler={() => setIsSettingOpen(false)} />
                             </Fragment>
                         </div>
                     </ContextMenuProvider>
-                <VoiceRingManager />
+                    <VoiceRingManager />
                 </ModalProvider>
             </AppInitializer>
             <PeerConnectionManager />

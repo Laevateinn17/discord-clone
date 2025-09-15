@@ -50,7 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         handleRefreshToken();
 
         return () => {
-            console.log('unmountingi nterceptor')
             api.interceptors.response.eject(refreshTokenInterceptor)
             // api.interceptors.request.eject(addIdentityInterceptor);
         }

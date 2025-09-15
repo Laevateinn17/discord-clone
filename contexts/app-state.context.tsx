@@ -16,9 +16,6 @@ export default function AppStateProvider({ children }: { children: ReactNode }) 
     const [isLoading, setIsLoading] = useState(true);
 
 
-    useEffect(() => {
-        console.log('rerender');
-    })
     return (
         <AppStateContext.Provider value={{ isLoading, setIsLoading }}>
             {children}

@@ -154,11 +154,9 @@ export function VoiceRingManager() {
         const { user } = useCurrentUserStore.getState();
         batchUpdateVoiceRingState(payload.map(p => new VoiceRingState(p.initiatorId, p.channelId, p.recipientId)));
         if (payload.find(vr => vr.initiatorId === user?.id)) {
-            console.log('riniggingin')
             usePlaySound('ring');
         }
         if (payload.find(vr => vr.recipientId === user?.id)) {
-            console.log('calilingi')
             usePlaySound('call');
         }
     }
@@ -179,12 +177,10 @@ export function VoiceRingManager() {
         socket?.on(GET_VOICE_RINGS_EVENT, handleGetVoiceRingStates);
         socket?.on(VOICE_RING_EVENT, onVoiceRing);
         socket?.on(VOICE_RING_DISMISS_EVENT, onVoiceRingDismiss);
-        console.log('adding ring listener');
         return () => {
             socket?.removeListener(GET_VOICE_RINGS_EVENT, handleGetVoiceRingStates);
             socket?.removeListener(VOICE_RING_EVENT, onVoiceRing);
             socket?.removeListener(VOICE_RING_DISMISS_EVENT, handleVoiceRingDismiss);
-            console.log('removing ring listener');
         }
     }, [socket])
 

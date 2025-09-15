@@ -126,18 +126,18 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         const socket = initializeSocket();
 
         const handleConnect = () => {
-            console.log('Socket connected');
+            // console.log('Socket connected');
             setIsConnected(true);
         };
 
         const handleDisconnect = () => {
-            console.log('Socket disconnected');
+            // console.log('Socket disconnected');
             setIsConnected(false);
             setIsReady(false);
         };
 
         const handleConnectError = (error: any) => {
-            console.log('Socket connection error:', error.description);
+            // console.log('Socket connection error:', error.description);
             if (error.description === HttpStatusCode.Unauthorized) {
                 refreshToken();
             }
@@ -158,16 +158,13 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         socket!.on(GET_VOICE_STATES_EVENT, handleGetVoiceStates);
 
         const handleBeforeUnload = () => {
-            console.log('disconnecting socket', socket);
             socket?.disconnect();
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
-        console.log('adding socket listener', socket);
         // setSocket(socket);
         return () => {
             socket.removeAllListeners();
-            console.log('removing socket listener', socket);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, []);
@@ -176,7 +173,6 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         const socketAndMediasoupReady = isConnected && ready;
 
         if (socketAndMediasoupReady !== isReady) {
-            console.log('mediasoup & socket is ready', socketAndMediasoupReady)
             setIsReady(socketAndMediasoupReady);
         }
     }, [isConnected, ready]);

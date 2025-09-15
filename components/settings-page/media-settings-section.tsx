@@ -189,7 +189,6 @@ function MicTestButton() {
                 const mimeType = recorder.mimeType || 'audio/webm';
                 const blob = new Blob(chunksRef.current, { type: mimeType });
                 const url = URL.createObjectURL(blob);
-                console.log('Recording blob created:', url);
                 setAudioURL(url);
 
                 if (streamRef.current) {
@@ -274,7 +273,7 @@ function VoiceSettingsTab() {
             const devices = await navigator.mediaDevices.enumerateDevices();
             setDevices(devices);
         }
-        navigator.mediaDevices.enumerateDevices().then(dev => { setDevices(dev); console.log(dev) });
+        navigator.mediaDevices.enumerateDevices().then(dev => setDevices(dev));
 
         navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
 
