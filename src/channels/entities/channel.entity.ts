@@ -15,7 +15,7 @@ export class Channel {
     @Column({ nullable: true })
     name?: string;
 
-    // @Column({name: 'owner_id'})
+    @Column({name: 'owner_id'})
     ownerId: string
 
     @AutoMap()

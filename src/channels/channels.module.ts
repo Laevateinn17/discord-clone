@@ -8,11 +8,12 @@ import { ChannelRecipient } from "./entities/channel-recipient.entity";
 import { UserReadState } from "./entities/user-read-state.entity";
 import { RedisModule } from "src/redis/redis.module";
 import { Guild } from "src/guilds/entities/guild.entity";
+import { GrpcClientModule } from "src/grpc-client/grpc-client.module";
 
 @Module({
   controllers: [GuildChannelsController, DMChannelsController, ChannelsController],
   providers: [ChannelsService],
-  imports: [HttpModule, RedisModule, TypeOrmModule.forFeature([Channel, ChannelRecipient, UserReadState, Guild])],
+  imports: [HttpModule, RedisModule, TypeOrmModule.forFeature([Channel, ChannelRecipient, UserReadState, Guild]), GrpcClientModule],
   exports: [ChannelsService]
 })
 export class ChannelsModule {}

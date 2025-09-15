@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateChannelDTO } from './dto/create-channel.dto';
 import { CreateDMChannelDTO } from "./dto/create-dm-channel.dto";
 import { Result } from "src/interfaces/result.interface";
@@ -16,8 +16,8 @@ import { ChannelType } from "./enums/channel-type.enum";
 import { response } from "express";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { UserProfile } from "aws-sdk/clients/opsworks";
-import { ClientProxy, ClientProxyFactory, GrpcMethod, Transport } from "@nestjs/microservices";
-import { CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GATEWAY_QUEUE, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, PRODUCER_CREATED, USER_TYPING_EVENT, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "src/constants/events";
+import { ClientGrpc, ClientProxy, ClientProxyFactory, GrpcMethod, Transport } from "@nestjs/microservices";
+import { CHANNEL_CREATED, CHANNEL_DELETED, CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GATEWAY_QUEUE, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, PRODUCER_CREATED, USER_TYPING_EVENT, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "src/constants/events";
 import { Payload } from "src/interfaces/payload.dto";
 import { UserTypingDTO } from "src/channels/dto/user-typing.dto";
 import { UserReadState } from "./entities/user-read-state.entity";
@@ -33,10 +33,12 @@ import { VoiceRingStateDTO } from "./dto/voice-ring-state.dto";
 import { RTCOfferDTO } from "./dto/rtc-offer.dto";
 import { ProducerCreatedDTO } from "./dto/producer-created.dto";
 import { Guild } from "src/guilds/entities/guild.entity";
+import { UserProfilesService } from "src/user-profiles/grpc/user-profiles.service";
 
 @Injectable()
 export class ChannelsService {
   private gatewayMQ: ClientProxy;
+  private usersServiceGrpc: UserProfilesService;
 
   constructor(
     private readonly usersService: HttpService,
@@ -44,7 +46,8 @@ export class ChannelsService {
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
-    @InjectRepository(UserReadState) private readonly userReadStateRepository: Repository<UserReadState>
+    @InjectRepository(UserReadState) private readonly userReadStateRepository: Repository<UserReadState>,
+    @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc
   ) {
     this.gatewayMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
@@ -65,7 +68,7 @@ export class ChannelsService {
       };
     }
 
-    const guild = await this.guildsRepository.findOneBy({ id: dto.guildId });
+    const guild = await this.guildsRepository.findOne({ where: { id: dto.guildId }, relations: ['members'] });
 
     if (guild.ownerId !== userId) {
       return {
@@ -78,7 +81,7 @@ export class ChannelsService {
     const channelToSave = mapper.map(dto, CreateChannelDTO, Channel);
     channelToSave.ownerId = userId;
 
-    let recipients: ChannelRecipient[] = []
+    let recipients: ChannelRecipient[] = [];
 
     try {
       await this.channelsRepository.save(channelToSave);
@@ -97,15 +100,79 @@ export class ChannelsService {
 
     const channelWithParent = await this.channelsRepository.findOne({
       where: { id: channelToSave.id },
-      relations: ['parent'],
+      relations: ['parent',],
     });
 
     channelWithParent.recipients = recipients;
 
+    const payload = mapper.map(channelWithParent, Channel, ChannelResponseDTO)
+    const recipientsResponse: Result<UserProfileResponseDTO[]> = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({ userIds: recipients.map(re => re.userId) }));
+
+    payload.recipients = recipientsResponse.data ?? [];
+    try {
+      this.gatewayMQ.emit(CHANNEL_CREATED, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, channel: payload } } as Payload<{ guildId: string, channel: ChannelResponseDTO }>);
+    } catch (error) {
+      console.error("Failed emitting channel delete update");
+    }
     return {
       status: HttpStatus.CREATED,
-      data: mapper.map(channelWithParent, Channel, ChannelResponseDTO),
+      data: payload,
       message: 'Channel created successfully'
+    };
+  }
+
+  async delete(userId: string, channelId: string): Promise<Result<null>> {
+    if (!userId || !channelId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "Channel id is empty"
+      };
+    }
+
+    const channel = await this.channelsRepository
+      .createQueryBuilder('channel')
+      .leftJoinAndSelect('channel.recipients', 'recipients')
+      .where('channel.id = :channelId', { channelId: channelId })
+      .getOne();
+
+
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: "Channel does not exist"
+      };
+    }
+
+    if (channel.ownerId !== userId) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: "User is not allowed to delete this channel"
+      }
+    }
+
+    try {
+      await this.channelsRepository.delete(channel);
+    } catch (error) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: "An error occurred while deleting channel"
+      };
+    }
+
+    try {
+      this.gatewayMQ.emit(CHANNEL_DELETED, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { channelId, guildId: channel.guildId } } as Payload<{ guildId: string, channelId: string }>);
+    } catch (error) {
+      console.error("Failed emitting channel delete update");
+    }
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      data: null,
+      message: "Channel deleted successfully"
     };
   }
 
@@ -516,8 +583,6 @@ export class ChannelsService {
       };
     }
 
-    console.log('1')
-
     if (!channel.recipients.find(r => r.userId === dto.userId)) {
       return {
         status: HttpStatus.FORBIDDEN,
@@ -526,17 +591,11 @@ export class ChannelsService {
       };
     }
 
-    console.log('2')
-
     const client = await this.redisService.getClient();
     const state: VoiceState = { channelId: dto.channelId, userId: dto.userId, isDeafened: dto.data.isDeafened, isMuted: dto.data.isMuted };
     await client.set(this.getVoiceStateKey(dto.channelId, dto.userId), JSON.stringify(state));
     await client.sAdd(this.getVoiceChannelKey(dto.channelId), dto.userId);
-
-    console.log('3')
     await this.handleDismissVoiceRing(dto.userId, dto.channelId);
-
-    console.log('4')
 
     const recipients = channel.recipients.map(r => r.userId);
     const payload: VoiceEventDTO = {
@@ -722,6 +781,8 @@ export class ChannelsService {
     return `ring:channel:${channelId}}`
   }
   onModuleInit() {
+    this.usersServiceGrpc = this.usersGRPCClient.getService<UserProfilesService>('UserProfilesService');
+
     createMap(mapper, CreateDMChannelDTO, Channel);
     createMap(mapper, CreateChannelDTO, Channel);
     createMap(mapper, Channel, ChannelResponseDTO);

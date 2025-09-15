@@ -40,3 +40,6 @@ export const GET_RTP_CAPABILITIES = 'get_rtp_capabilities';
 export const CREATE_PRODUCER = 'create_producer';
 export const PRODUCER_CREATED = 'producer_created';
 export const CREATE_CONSUMER = 'create_consumer';
+
+export const CHANNEL_CREATED = 'channel_created';
+export const CHANNEL_DELETED = 'channel_deleted';

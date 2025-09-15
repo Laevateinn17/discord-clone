@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateGuildDto } from './dto/create-guild.dto';
 import { UpdateGuildDto } from './dto/update-guild.dto';
 import { InjectRepository } from "@nestjs/typeorm"
@@ -18,16 +18,19 @@ import { Channel } from "src/channels/entities/channel.entity";
 import { HttpService } from "@nestjs/axios";
 import { firstValueFrom } from "rxjs";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
+import { UserProfilesService } from "src/user-profiles/grpc/user-profiles.service";
+import { ClientGrpc } from "@nestjs/microservices";
 
 @Injectable()
 export class GuildsService {
+  private usersServiceGrpc: UserProfilesService;
 
   constructor(
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(GuildMember) private readonly guildMembersRepository: Repository<GuildMember>,
     private readonly channelsService: ChannelsService,
     private readonly storageService: StorageService,
-    private readonly userService: HttpService
+    @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc
   ) {
 
   }
@@ -129,7 +132,7 @@ export class GuildsService {
       .createQueryBuilder('guild')
       .leftJoinAndSelect('guild.members', 'member')
       .leftJoinAndSelect('guild.channels', 'channel')
-      .leftJoinAndSelect('channel.parent', 'parentChannel')
+      .leftJoinAndSelect('channel.parent', 'parent_channel')
       .leftJoinAndSelect('channel.recipients', 'recipients')
       .where('guild.id = :guildId', { guildId: guildId }).getOne();
 
@@ -143,25 +146,15 @@ export class GuildsService {
     }
 
     const data = mapper.map(guild, Guild, GuildResponseDTO);
-    // data.channels = guild.channels.map(ch => {
-    //   const channel = mapper.map(ch, Channel, ChannelResponseDTO)
-    //   channel.recipients = mapper.map()
-    // });
+    const membersResponse: Result<UserProfileResponseDTO[]> = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({ userIds: guild.members.map(re => re.userId) }));
 
-    data.members = await Promise.all(guild.members.map(async (m) => {
-      try {
-        const url = `http://${process.env.USER_SERVICE_HOST}:${process.env.USER_SERVICE_PORT}/user-profiles/${m.userId}`;
-        const userIdentityResponse = (await firstValueFrom(this.userService.get(url))).data;
+    data.members = membersResponse.data ?? [];
 
-        if (userIdentityResponse.status !== HttpStatus.OK) {
-          return {};
-        }
+    data.channels = await Promise.all(guild.channels.map(async ch => {
+      const channel = mapper.map(ch, Channel, ChannelResponseDTO);
+      channel.recipients = data.members.filter(m => ch.recipients.map(r => r.userId === m.id));
 
-        return userIdentityResponse.data
-
-      } catch (error) {
-        return {};
-      }
+      return channel;
     }));
 
     return {
@@ -180,6 +173,9 @@ export class GuildsService {
   }
 
   onModuleInit() {
+
+    this.usersServiceGrpc = this.usersGRPCClient.getService<UserProfilesService>('UserProfilesService');
+
     createMap(mapper, CreateGuildDto, Guild);
     createMap(mapper, Guild, GuildResponseDTO);
   }

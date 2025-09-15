@@ -131,6 +131,18 @@ export class ChannelsController {
     return res.status(status).json(result);
   }
 
+  @Delete(':channelId')
+  async deleteChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
+    if (!userId || userId.length === 0) {
+      return res.status(HttpStatus.UNAUTHORIZED).send();
+    }
+
+    const result = await this.channelsService.delete(userId, channelId);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
   @MessagePattern(VOICE_UPDATE_EVENT)
   async voiceUpdate(@Body(new ValidationPipe({ transform: true })) dto: VoiceEventDTO) {
     switch (dto.type) {
