@@ -188,12 +188,14 @@ export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onC
                 channels: [...old.channels.filter(ch => ch.id !== channel.id)]
             };
         })
-        if (channel.guild!.channels.length > 0) {
-            router.push(`/channels/${channel.guild!.id}/${channel.guild!.channels[0].id}`);
-        }
-        else {
+        const remainingChannels = channel.guild!.channels.filter(ch => ch.id !== channel.id && ch.type === ChannelType.Text);
+
+        if (remainingChannels.length > 0) {
+            router.push(`/channels/${channel.guild!.id}/${remainingChannels[0].id}`);
+        } else {
             router.push(`/channels/${channel.guild!.id}`);
         }
+
         onClose();
         closeModal(ModalType.CHANNEL_SETTINGS);
     }

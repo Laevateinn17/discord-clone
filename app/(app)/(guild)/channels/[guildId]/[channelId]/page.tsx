@@ -211,6 +211,7 @@ export default function Page() {
 
     const typingUsers = useTypingUsersFromChannel(channelId as string);
 
+
     async function handleSubmit(dto: CreateMessageDto) {
         const id = `pending-${messages!.length}`
         const createdAt = new Date();
@@ -283,10 +284,14 @@ export default function Page() {
     useEffect(() => {
         if (!guild) return;
         document.title = `Viscord | ${guild.name}`
-    }, [guild])
+    }, [guild]);
 
     if (isPending) {
         return <p>Loading...</p>;
+    }
+
+    if (!channel) {
+        return <div></div>
     }
 
 

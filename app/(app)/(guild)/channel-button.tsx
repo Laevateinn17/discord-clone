@@ -4,7 +4,7 @@ import { ChannelType } from "@/enums/channel-type.enum";
 import { ModalType } from "@/enums/modal-type.enum";
 import { Channel } from "@/interfaces/channel";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, MouseEvent, MouseEventHandler, useEffect, useState } from "react";
 import { PiHash } from "react-icons/pi";
 import styled from "styled-components";
 
@@ -63,7 +63,7 @@ function CreateInviteButton() {
     )
 }
 
-function EditChannelButton({ onClick }: { onClick: () => void }) {
+function EditChannelButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement>) => void }) {
     const [hover, setHover] = useState(false);
 
     return (
@@ -103,7 +103,10 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                         </ChannelInfo>
                         <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
                             <CreateInviteButton />
-                            <EditChannelButton onClick={() => openModal(ModalType.CHANNEL_SETTINGS, { channel: channel })} />
+                            <EditChannelButton onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(ModalType.CHANNEL_SETTINGS, { channel: channel })
+                            }} />
                         </ActionButtonContainer>
                     </Fragment>
                     :
