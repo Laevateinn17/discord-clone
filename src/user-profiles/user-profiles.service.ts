@@ -1,4 +1,4 @@
-import { Body, HttpStatus, Injectable, ValidationPipe } from '@nestjs/common';
+import { Body, forwardRef, HttpStatus, Inject, Injectable, ValidationPipe } from '@nestjs/common';
 import { CreateUserProfileDto } from './dto/create-user-profile.dto';
 import { UserProfile } from './entities/user-profile.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,12 +17,15 @@ import { Payload } from "src/interfaces/payload.dto";
 import { HttpService } from "@nestjs/axios";
 import axios from "axios";
 import { firstValueFrom } from "rxjs";
+import { UserStatus } from "./enums/user-status.enum";
+import { RelationshipsService } from "src/relationships/relationships.service";
 
 @Injectable()
 export class UserProfilesService {
   private gatewayMQ: ClientProxy
   constructor(
     private readonly storageService: StorageService,
+    @Inject(forwardRef(() => RelationshipsService)) private readonly relationshipsService: RelationshipsService,
     @InjectRepository(UserProfile) private readonly userProfileRepository: Repository<UserProfile>,
     private readonly guildsService: HttpService
   ) {
@@ -110,7 +113,7 @@ export class UserProfilesService {
   }
 
   async updateStatus(@Body(new ValidationPipe({ transform: true })) dto: UpdateStatusDTO): Promise<Result<null>> {
-    const userResponse = await this.getById(dto.id);
+    const userResponse = await this.getById(dto.userId);
 
     if (userResponse.status != HttpStatus.OK) {
       return {
@@ -122,28 +125,44 @@ export class UserProfilesService {
 
     try {
       const userProfile = mapper.map(userResponse.data, UserProfileResponseDTO, UserProfile);
+      const previousStatus = userProfile.status;
+
       userProfile.status = dto.status;
       await this.userProfileRepository.save(userProfile);
 
 
-      const recipients = [];
+      let recipients: string[] = [];
+      const relationshipsResponse = await this.relationshipsService.findAll(dto.userId);
+      console.log(relationshipsResponse);
+      if (relationshipsResponse.status === HttpStatus.OK) {
+        recipients = recipients.concat(relationshipsResponse.data.map(rel => rel.user.id));
+      }
 
       const dmChannelsResponse = await firstValueFrom(this.guildsService.get(`http://${process.env.GUILDS_SERVICE_HOST}:${process.env.GUILDS_SERVICE_PORT}/users/me/channels`, {
         headers: {
-          "X-User-Id": dto.id
+          "X-User-Id": dto.userId
         }
       }));
 
       if (dmChannelsResponse.status === HttpStatus.OK) {
         const channels = dmChannelsResponse.data.data;
-        recipients.concat(channels.map(ch => {
-          return ch.recipients.find(recipient => recipient.id != dto.id)!;
+        recipients = recipients.concat(channels.map(ch => {
+          return ch.recipients.find(recipient => recipient.id != dto.userId)!;
         }));
       }
 
-      const payload: Payload<UserStatusUpdateDTO> = { recipients: recipients, data: { status: dto.status, userId: dto.id } };
-      this.gatewayMQ.emit(USER_STATUS_UPDATE_EVENT, payload);
+      recipients = [...(new Set(recipients))];
 
+      const payload: Payload<UserStatusUpdateDTO> = { recipients: recipients, data: { status: dto.status, userId: dto.userId } };
+
+      if (dto.status === UserStatus.Invisible) {
+        this.relationshipsService.emitUserOffline({ recipients, data: dto.userId });
+      }
+      else if (previousStatus === UserStatus.Invisible) {
+        this.relationshipsService.emitUserOnline({ recipients, data: dto.userId });
+      }
+
+      this.gatewayMQ.emit(USER_STATUS_UPDATE_EVENT, payload);
 
       return {
         status: HttpStatus.OK,

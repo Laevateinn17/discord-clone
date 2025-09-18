@@ -44,7 +44,7 @@ export class UserProfilesController {
 
   @Patch('status')
   async updateStatus(@Headers('X-User-Id') id: string, @Res() res: Response, @Body(new ValidationPipe({ transform: true })) dto: UpdateStatusDTO) {
-    dto.id = id;
+    dto.userId = id;
     const result = await this.userProfilesService.updateStatus(dto);
     const { status } = result;
 

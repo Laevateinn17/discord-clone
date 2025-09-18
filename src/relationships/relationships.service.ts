@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { forwardRef, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';
 import { InjectRepository } from "@nestjs/typeorm";
@@ -12,7 +12,7 @@ import { ClientProxy, ClientProxyFactory, MessagePattern, Transport } from "@nes
 import { mapper } from "src/mappings/mappers";
 import { createMap } from "@automapper/core";
 import { Payload } from "src/interfaces/payload.dto";
-import { FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GATEWAY_QUEUE,  GET_USERS_STATUS_RESPONSE_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT } from "src/constants/events";
+import { FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GATEWAY_QUEUE, GET_USERS_PRESENCE_RESPONSE_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT } from "src/constants/events";
 import { UserStatus } from "src/user-profiles/enums/user-status.enum";
 
 @Injectable()
@@ -20,7 +20,7 @@ export class RelationshipsService {
   private gatewayMQ: ClientProxy;
 
   constructor(
-    private readonly userProfilesService: UserProfilesService,
+    @Inject(forwardRef(() => UserProfilesService)) private readonly userProfilesService: UserProfilesService,
     @InjectRepository(Relationship) private readonly relationshipRepository: Repository<Relationship>,
   ) {
     this.gatewayMQ = ClientProxyFactory.create({
@@ -376,11 +376,7 @@ export class RelationshipsService {
       data: userId
     } as Payload<string>;
 
-    try {
-      this.gatewayMQ.emit(USER_ONLINE_EVENT, p);
-    } catch (error) {
-      console.log(error)
-    }
+    this.emitUserOnline(p);
   }
 
   async onUserOffline(userId: string) {
@@ -397,32 +393,53 @@ export class RelationshipsService {
       data: userId
     } as Payload<string>;
 
+    this.emitUserOffline(p);
+  }
+
+  emitUserOffline(payload: Payload<string>) {
+    console.log('emitting user offline', payload);
     try {
-      this.gatewayMQ.emit(USER_OFFLINE_EVENT, p);
+      this.gatewayMQ.emit(USER_OFFLINE_EVENT, payload);
     } catch (error) {
       console.log(error)
     }
   }
 
-  async onGetFriendsStatus(userId: string) {
-    if (!userId || userId.length === 0) return;
-
-    const userResponse = await this.userProfilesService.getById(userId);
-
-    if (userResponse.status !== HttpStatus.OK || userResponse.data.status === UserStatus.Invisible) return;
-
-    const friends: Relationship[] = await this.relationshipRepository.findBy([{ senderId: userId, type: RelationshipType.Friends }, { recipientId: userId, type: RelationshipType.Friends }]);
-
-    const p = {
-      recipients: [userId],
-      data: friends.map(rel => rel.senderId === userId ? rel.recipientId : rel.senderId)
-    } as Payload<string[]>;
-
+  emitUserOnline(payload: Payload<string>) {
+    console.log('emitting user online', payload);
     try {
-      this.gatewayMQ.emit(GET_USERS_STATUS_RESPONSE_EVENT, p);
+      this.gatewayMQ.emit(USER_ONLINE_EVENT, payload);
     } catch (error) {
       console.log(error)
     }
+  }
+
+  async onGetVisibleUsers(userId: string): Promise<Result<string[]>> {
+    if (!userId || userId.length === 0) return
+
+    const friends: Relationship[] = await this.relationshipRepository.findBy([{ senderId: userId, type: RelationshipType.Friends }, { recipientId: userId, type: RelationshipType.Friends }]);
+    const friendIds = friends.map(rel => rel.senderId === userId ? rel.recipientId : rel.senderId);
+    const userProfilesResponse = await this.userProfilesService.getUserProfiles(friendIds);
+    if (userProfilesResponse.status !== HttpStatus.OK) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: '',
+        data: []
+      };
+    }
+
+    const payload = {
+      status: HttpStatus.OK,
+      message: '',
+      data: friendIds.filter(friendId => {
+        console.log(userProfilesResponse.data.find(up => up.id === friendId).status !== UserStatus.Invisible);
+        return userProfilesResponse.data.find(up => up.id === friendId).status !== UserStatus.Invisible;
+      })
+    };
+
+    console.log(payload);
+
+    return payload;
   }
 
   onModuleInit() {
