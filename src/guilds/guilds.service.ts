@@ -108,16 +108,43 @@ export class GuildsService {
     const guilds = await this.guildsRepository
       .createQueryBuilder('guild')
       .leftJoinAndSelect('guild.members', 'member')
-      .where('member.userId = :userId', { userId: userId })
-      .getMany()
+      .leftJoinAndSelect('guild.channels', 'channel')
+      .leftJoinAndSelect('channel.parent', 'parent_channel')
+      .where('member.userId = :userId', { userId })
+      .getMany();
+
+    const result = await Promise.all(
+      guilds.map(async (guild) => {
+        const data = mapper.map(guild, Guild, GuildResponseDTO);
+
+        const membersResponse: Result<UserProfileResponseDTO[]> =
+          await firstValueFrom(
+            this.usersServiceGrpc.getUserProfiles({
+              userIds: guild.members.map((m) => m.userId),
+            }),
+          );
+
+        data.members = membersResponse.data ?? [];
+
+        data.channels = await Promise.all(
+          guild.channels.map(async (ch) => {
+            const channel = mapper.map(ch, Channel, ChannelResponseDTO);
+            channel.recipients = data.members;
+            return channel;
+          }),
+        );
+
+        return data;
+      }),
+    );
+
     return {
       status: HttpStatus.OK,
-      data: guilds.map(guild => {
-        return mapper.map(guild, Guild, GuildResponseDTO)
-      }),
-      message: 'Guilds retrieved succesffully'
+      data: result,
+      message: 'Guilds retrieved successfully with details',
     };
   }
+
 
   async findOne(userId: string, guildId: string): Promise<Result<GuildResponseDTO>> {
     if (!guildId || guildId.length === 0) {
@@ -133,7 +160,6 @@ export class GuildsService {
       .leftJoinAndSelect('guild.members', 'member')
       .leftJoinAndSelect('guild.channels', 'channel')
       .leftJoinAndSelect('channel.parent', 'parent_channel')
-      .leftJoinAndSelect('channel.recipients', 'recipients')
       .where('guild.id = :guildId', { guildId: guildId }).getOne();
 
 
@@ -152,8 +178,7 @@ export class GuildsService {
 
     data.channels = await Promise.all(guild.channels.map(async ch => {
       const channel = mapper.map(ch, Channel, ChannelResponseDTO);
-      channel.recipients = data.members.filter(m => ch.recipients.map(r => r.userId === m.id));
-
+      channel.recipients = data.members; // can apply role based filter
       return channel;
     }));
 

@@ -1,9 +1,6 @@
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
-import { ChannelRecipient } from "../entities/channel-recipient.entity";
 import { AutoMap } from "@automapper/classes";
-import { Channel } from "../entities/channel.entity";
 import { ChannelType } from "../enums/channel-type.enum";
-import { Guild } from "src/guilds/entities/guild.entity";
 
 export class ChannelResponseDTO {
     @AutoMap()
@@ -28,7 +25,7 @@ export class ChannelResponseDTO {
     parent?: ChannelResponseDTO;
 
     @AutoMap()
-    guild?: Guild;
+    guildId: string;
 
     recipients: UserProfileResponseDTO[];
 

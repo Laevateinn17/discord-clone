@@ -81,14 +81,8 @@ export class ChannelsService {
     const channelToSave = mapper.map(dto, CreateChannelDTO, Channel);
     channelToSave.ownerId = userId;
 
-    let recipients: ChannelRecipient[] = [];
-
     try {
       await this.channelsRepository.save(channelToSave);
-      recipients = guild.members.map(member => ({ channelId: channelToSave.id, userId: member.userId }));
-
-      await this.channelRecipientRepository.save(recipients);
-      channelToSave.recipients = recipients;
     } catch (error) {
       console.error(error)
       return {
@@ -103,12 +97,7 @@ export class ChannelsService {
       relations: ['parent',],
     });
 
-    channelWithParent.recipients = recipients;
-
     const payload = mapper.map(channelWithParent, Channel, ChannelResponseDTO)
-    const recipientsResponse: Result<UserProfileResponseDTO[]> = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({ userIds: recipients.map(re => re.userId) }));
-
-    payload.recipients = recipientsResponse.data ?? [];
     try {
       this.gatewayMQ.emit(CHANNEL_CREATED, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, channel: payload } } as Payload<{ guildId: string, channel: ChannelResponseDTO }>);
     } catch (error) {
@@ -130,8 +119,7 @@ export class ChannelsService {
       };
     }
 
-    const channel = await this.channelsRepository.findOne({where: {id: channelId}, relations: ['recipients']})
-
+    const channel = await this.channelsRepository.findOne({ where: { id: channelId }, relations: ['recipients'] })
 
     if (!channel) {
       return {
@@ -150,7 +138,7 @@ export class ChannelsService {
     }
 
     try {
-      await this.channelsRepository.delete({id: channel.id});
+      await this.channelsRepository.delete({ id: channel.id });
     } catch (error) {
       console.error(error);
       return {
@@ -246,7 +234,6 @@ export class ChannelsService {
       data: responseDTO,
       message: ""
     };
-
   }
 
   async getDMChannels(userId: string): Promise<Result<ChannelResponseDTO[]>> {
@@ -313,7 +300,7 @@ export class ChannelsService {
     };
   }
 
-  async getChannelDetail(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
+  async getChannelByIdWithAuth(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
     if (!channelId || channelId.length === 0) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -352,6 +339,69 @@ export class ChannelsService {
       data: data,
       message: 'Channel retrieved successfully'
     };
+  }
+
+  async getChannelRecipients(channelId: string): Promise<string[]> {
+    const guild = await this.guildsRepository
+      .createQueryBuilder('guild')
+      .leftJoinAndSelect('guild.channels', 'channel')
+      .leftJoinAndSelect('guild.members', 'member')
+      .where('channel.id = :channelId', { channelId: channelId })
+      .getOne();
+
+    const members = guild.members.map(m => m.userId);
+
+    //TODO permission based filter
+
+    return members;
+  }
+
+  async isUserChannelParticipant(userId: string, channelId: string): Promise<Result<any>> {
+    const channelRecipients = await this.getChannelRecipients(channelId);
+
+    if (!channelRecipients.includes(userId)) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User is not a recipient of this channel'
+      };
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: null,
+      message: null
+    };
+  }
+
+  async getChannelById(channelId: string) {
+    if (!channelId || channelId.length === 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Invalid channel id'
+      };
+    }
+
+    const channel = await this.channelsRepository.findOneBy({ id: channelId })
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel not found'
+      };
+    }
+
+    const channelRecipients = await this.getChannelRecipients(channelId);
+    const data = mapper.map(channel, Channel, ChannelResponseDTO);
+    data.recipients = await Promise.all(channelRecipients.map(async userId => (await this.getRecipientDetail(userId)).data));
+
+    return {
+      status: HttpStatus.OK,
+      data: data,
+      message: 'Channel retrieved successfully'
+    };
+
   }
 
   private async getRecipientDetail(userId: string): Promise<Result<UserProfileResponseDTO>> {

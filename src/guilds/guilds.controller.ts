@@ -4,6 +4,7 @@ import { CreateGuildDto } from './dto/create-guild.dto';
 import { UpdateGuildDto } from './dto/update-guild.dto';
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
+import { GrpcMethod } from "@nestjs/microservices";
 
 @Controller('guilds')
 export class GuildsController {
@@ -25,6 +26,11 @@ export class GuildsController {
     const { status } = result;
 
     return res.status(status).json(result);
+  }
+
+  @GrpcMethod('GuildsService', 'FindAll')
+  async findAllGrpc({userId}: {userId: string}) {
+    return await this.guildsService.findAll(userId);
   }
 
   @Get(':id')

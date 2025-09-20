@@ -81,7 +81,7 @@ export class DMChannelsController {
       return res.status(HttpStatus.UNAUTHORIZED).send();
     }
 
-    const result = await this.channelsService.getChannelDetail(userId, channelId);
+    const result = await this.channelsService.getChannelByIdWithAuth(userId, channelId);
     const { status } = result;
 
     return res.status(status).json(result);
@@ -98,7 +98,7 @@ export class ChannelsController {
       return res.status(HttpStatus.UNAUTHORIZED).send();
     }
 
-    const result = await this.channelsService.getChannelDetail(userId, channelId);
+    const result = await this.channelsService.getChannelByIdWithAuth(userId, channelId);
     const { status } = result;
     return res.status(status).json(result);
   }
@@ -162,5 +162,13 @@ export class ChannelsController {
     await this.channelsService.handleGetVoiceRings(userId);
   }
 
+  @GrpcMethod('ChannelsService', 'GetChannelById')
+  async getChannelById({ channelId }: { channelId: string }) {
+    return await this.channelsService.getChannelById(channelId);
+  }
 
+  @GrpcMethod('ChannelsService', 'IsUserChannelParticipant')
+  async isUserChannelParticipant({userId, channelId}: {userId: string, channelId: string}) {
+    return await this.channelsService.isUserChannelParticipant(userId, channelId)
+  }
 }
