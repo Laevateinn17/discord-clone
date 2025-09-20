@@ -1,0 +1,33 @@
+import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
+import { AutoMap } from "@automapper/classes";
+import { ChannelType } from "../enums/channel-type.enum";
+
+export class ChannelResponseDTO {
+    @AutoMap()
+    id: string;
+
+    @AutoMap()
+    name?: string;
+
+    @AutoMap()
+    type: ChannelType;
+
+    @AutoMap()
+    isPrivate: boolean
+
+    @AutoMap()
+    createdAt: Date;
+
+    @AutoMap()
+    updatedAt: Date;
+
+    @AutoMap()
+    parent?: ChannelResponseDTO;
+
+    @AutoMap()
+    guildId: string;
+
+    recipients: UserProfileResponseDTO[];
+
+    lastReadId?: string;
+}

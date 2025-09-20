@@ -54,6 +54,21 @@ import { join } from "path";
                         }
                     }
                 },
+                {
+                    name: 'GUILDS_SERVICE',
+                    imports: [ConfigModule],
+                    inject: [ConfigService],
+                    useFactory: (configService: ConfigService) => {
+                        return {
+                            transport: Transport.GRPC,
+                            options: {
+                                package: 'guilds',
+                                protoPath: join(__dirname, '../proto/guilds.proto'),
+                                url: `${configService.get('GUILD_SERVICE_HOST')}:${configService.get('GUILD_SERVICE_GRPC_PORT')}`,
+                            },
+                        }
+                    }
+                },
             ]
         })
     ],

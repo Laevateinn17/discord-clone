@@ -17,6 +17,8 @@ import { RedisService } from "src/redis/redis.service";
 import { PresenceService } from "src/presence/presence.service";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { Result } from "src/interfaces/result.interface";
+import { GuildsService } from "src/guilds/guilds.service";
+import { GuildResponseDTO } from "src/guilds/dto/guild-response.dto";
 
 @Injectable()
 @WebSocketGateway({ namespace: "/ws" })
@@ -24,6 +26,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   private channelsService: ChannelsService;
   private relationshipsService: RelationshipsService;
   private usersService: UsersService;
+  private guildsService: GuildsService;
   private userMQ: ClientProxy;
   private channelMQ: ClientProxy;
   @WebSocketServer()
@@ -33,9 +36,11 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
   constructor(
     private readonly sfuService: SfuService,
     private readonly presenceService: PresenceService,
-    @Inject('CHANNELS_SERVICE') private channelGRPCClient: ClientGrpc,
-    @Inject('USERS_SERVICE') private userGRPCClient: ClientGrpc,
-    @Inject('RELATIONSHIPS_SERVICE') private relationshipGRPCClient: ClientGrpc,
+    @Inject('CHANNELS_SERVICE') private channelsGRPCClient: ClientGrpc,
+    @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc,
+    @Inject('RELATIONSHIPS_SERVICE') private relationshipsGRPCClient: ClientGrpc,
+    @Inject('GUILDS_SERVICE') private guildsGRPCClient: ClientGrpc,
+
   ) {
     this.userMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
@@ -214,16 +219,20 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
       const dmChannelsResponse = await firstValueFrom(this.channelsService.getDmChannels({ userId }));
       const userResponse = await firstValueFrom(this.usersService.getCurrentUser({ userId }));
       const relationshipResponse: Result<RelationshipResponseDTO[]> = await firstValueFrom(this.relationshipsService.getRelationships({ userId }));
-      const visibleUsersResponse: Result<string[]> = await firstValueFrom(this.relationshipsService.getVisibleUsers({ userId }));
-      let userPresence: (string | null)[] = []
-      if (visibleUsersResponse.status === HttpStatus.OK) {
-        userPresence = await this.presenceService.getUserPresence(visibleUsersResponse.data);
+      const visibleUsersResponse: Result<string[] | undefined> = await firstValueFrom(this.relationshipsService.getVisibleUsers({ userId }));
+      const guildsResponse: Result<GuildResponseDTO[]> = await firstValueFrom(this.guildsService.findAll({ userId }));
+
+      let userIds = visibleUsersResponse.data ?? [];
+      let userPresence: string[] = [];
+
+      if (userIds.length > 0) {
+       userPresence = await this.presenceService.getUserPresence(userIds);
       }
 
       this.channelMQ.emit(GET_VOICE_STATES_EVENT, userId);
       this.channelMQ.emit(GET_VOICE_RINGS_EVENT, userId);
 
-      return { user: userResponse.data, dmChannels: dmChannelsResponse.data, relationships: relationshipResponse.data, presences: userPresence };
+      return { user: userResponse.data, dmChannels: dmChannelsResponse.data, relationships: relationshipResponse.data, presences: userPresence, guilds: guildsResponse.data };
     } catch (error) {
       console.log('failed grpc request', error)
     }
@@ -288,16 +297,13 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
     const recipient = payload.recipients[0];
     const socketId = this.users.get(recipient);
 
-    if (socketId) this.server.to(socketId).emit(GET_USERS_PRESENCE_RESPONSE_EVENT)
-
+    if (socketId) this.server.to(socketId).emit(GET_USERS_PRESENCE_RESPONSE_EVENT);
   }
 
-
-
-
   onModuleInit() {
-    this.channelsService = this.channelGRPCClient.getService<ChannelsService>('ChannelsService');
-    this.usersService = this.userGRPCClient.getService<UsersService>('UsersService');
-    this.relationshipsService = this.relationshipGRPCClient.getService<RelationshipsService>('RelationshipsService');
+    this.channelsService = this.channelsGRPCClient.getService<ChannelsService>('ChannelsService');
+    this.usersService = this.usersGRPCClient.getService<UsersService>('UsersService');
+    this.relationshipsService = this.relationshipsGRPCClient.getService<RelationshipsService>('RelationshipsService');
+    this.guildsService = this.guildsGRPCClient.getService<GuildsService>('GuildsService');
   }
 }
