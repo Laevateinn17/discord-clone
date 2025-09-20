@@ -1,14 +1,16 @@
 import { Guild } from "@/interfaces/guild";
+import { IoMdReturnLeft } from "react-icons/io";
 import { create } from "zustand";
 
 type GuildMap = Map<string, Guild>;
 
 interface GuildStoreState {
-    guilds: Map<string, Guild>,
-    setGuilds: (guilds: GuildMap) => void,
-    addGuild: (guild: Guild) => void,
-    removeGuild: (guildId: string) => void,
-    getGuild: (guildId: string) => Guild | undefined
+    guilds: Map<string, Guild>;
+    setGuilds: (guilds: GuildMap) => void;
+    addGuild: (guild: Guild) => void;
+    removeGuild: (guildId: string) => void;
+    getGuild: (guildId: string) => Guild | undefined;
+    updateChannelLastRead: (guildId: string, channelId: string, messageId: string) => void;
 }
 
 export const useGuildsStore = create<GuildStoreState>((set, get) => ({
@@ -26,7 +28,26 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
 
         return { guilds: newGuilds };
     }),
-    getGuild: (guildId) => get().guilds.get(guildId)
+    getGuild: (guildId) => get().guilds.get(guildId),
+    updateChannelLastRead: (guildId, channelId, messageId) => {
+        set((state) => {
+            const guild = state.guilds.get(guildId);
+            if (!guild) return state;
+
+            const updatedChannels = guild.channels.map((channel) =>
+                channel.id === channelId
+                    ? { ...channel, lastReadId: messageId }
+                    : channel
+            );
+
+            const updatedGuild: Guild = { ...guild, channels: updatedChannels };
+
+            const newGuilds = new Map(state.guilds);
+            newGuilds.set(guildId, updatedGuild);
+
+            return { guilds: newGuilds }
+        })
+    }
 }))
 
 export const useGetGuild = (guildId: string) => useGuildsStore.getState().getGuild(guildId);

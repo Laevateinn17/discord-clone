@@ -247,7 +247,7 @@ export default function Page() {
     const { guildId, channelId } = useParams();
     const { user } = useCurrentUserStore();
     const router = useRouter();
-    const { getGuild } = useGuildsStore();
+    const { getGuild, updateChannelLastRead } = useGuildsStore();
     const guild = getGuild(guildId as string);
 
     const channel = guild?.channels.find(ch => ch.id == channelId);
@@ -272,7 +272,6 @@ export default function Page() {
     const { presenceMap, isUserOnline } = useUserPresenceStore();
     const onlineMembers = channel ? channel.recipients.filter(re => isUserOnline(re.id)) : [];
     const offlineMembers = channel ? channel.recipients.filter(re => !isUserOnline(re.id)) : [];
-    console.log('online', onlineMembers, offlineMembers, presenceMap)
 
     async function handleSubmit(dto: CreateMessageDto) {
         const id = `pending-${messages!.length}`
@@ -291,7 +290,7 @@ export default function Page() {
         };
 
         if (channel) {
-            updateChannel({ ...channel!, lastReadId: message.id });
+            updateChannelLastRead(guildId as string, channelId as string, message.id);
         }
 
 
@@ -339,7 +338,7 @@ export default function Page() {
             return newMessages;
         });
         if (!channel) return;
-        updateChannel({ ...channel, lastReadId: response.data!.id });
+        updateChannelLastRead(guildId as string, channelId as string, response.data!.id);
     }
 
 
