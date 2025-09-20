@@ -6,6 +6,8 @@ package channels;
 service ChannelsService {
   rpc AcknowledgeMessage (AcknowledgeMessageRequest) returns (AcknowledgeMessageResponse);
   rpc GetDMChannels (GetDMChannelsRequest) returns (GetDMChannelsResponse);
+  rpc GetChannelById (GetChannelByIdRequest) returns (GetChannelByIdResponse);
+  rpc IsUserChannelParticipant (IsUserChannelParticipantRequest) returns (IsUserChannelParticipantResponse);
 }
 
 message AcknowledgeMessageRequest {
@@ -24,8 +26,28 @@ message GetDMChannelsRequest {
 }
 
 message GetDMChannelsResponse {
-  string status = 1;
+  int32 status = 1;
   repeated Channel data = 2;
+}
+
+message GetChannelByIdRequest {
+  string channelId = 1;
+}
+
+
+message GetChannelByIdResponse {
+  int32 status = 1;
+  Channel data = 2;
+}
+
+message IsUserChannelParticipantRequest {
+  string userId = 1;
+  string channelId = 2;
+}
+
+message IsUserChannelParticipantResponse {
+  int32 status = 1;
+  string message = 2;
 }
 
 enum ChannelType {
@@ -78,4 +100,5 @@ message Channel {
   Guild guild = 8;
   repeated UserProfile recipients = 9;
   string lastReadId = 10;
+  string guildId = 11;
 }
