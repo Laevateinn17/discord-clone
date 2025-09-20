@@ -20,18 +20,17 @@ import { GATEWAY_QUEUE, MESSAGE_RECEIVED } from "src/constants/message-broker";
 import { channel } from "diagnostics_channel";
 import { Payload } from "src/interfaces/payload.dto";
 import { ChannelResponseDTO } from "src/channels/dto/channel-response.dto";
-import { ChannelsService } from "src/grpc/channels.service";
+import { ChannelsService } from "src/channels/channels.service";
 
 @Injectable()
 export class MessagesService {
-  private channelsGRPCService: ChannelsService;
+  private channelsService: ChannelsService;
   private gatewayMQ: ClientProxy;
   constructor(
     @InjectRepository(Message) private readonly messagesRepository: Repository<Message>,
     @InjectRepository(Attachment) private readonly attachmentsRepository: Repository<Attachment>,
     @InjectRepository(MessageMention) private readonly messageMentionsRepository: Repository<MessageMention>,
     private readonly storageService: StorageService,
-    private readonly channelsService: HttpService, // should be moved to gRPC
     @Inject('CHANNELS_SERVICE') private client: ClientGrpc
   ) {
     this.gatewayMQ = ClientProxyFactory.create({
@@ -61,10 +60,14 @@ export class MessagesService {
       };
     }
 
-    const channelResponse = await this.getChannelDetail(dto.senderId, dto.channelId);
+    const channelResponse = await firstValueFrom(this.channelsService.getChannelById({ channelId: dto.channelId }));
 
     if (channelResponse.status !== HttpStatus.OK) {
-      return { ...channelResponse, data: null };
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'User is not a recipient of this channel',
+        data: null
+      };
     }
     const message = mapper.map(dto, CreateMessageDto, Message);
     try {
@@ -141,10 +144,10 @@ export class MessagesService {
       };
     }
 
-    const channelResponse = await this.getChannelDetail(userId, channelId);
+    const channelResponse = await firstValueFrom(this.channelsService.isUserChannelParticipant({userId, channelId}));
 
     if (channelResponse.status !== HttpStatus.OK) {
-      return { ...channelResponse, data: null };
+      return channelResponse;
     }
 
     const messages = await this.messagesRepository
@@ -169,32 +172,6 @@ export class MessagesService {
     };
   }
 
-  private async getChannelDetail(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
-    let recipientResponse: AxiosResponse<any, any>;
-    try {
-      const url = `http://${process.env.GUILD_SERVICE_HOST}:${process.env.GUILD_SERVICE_PORT}/channels/${channelId}`;
-      recipientResponse = (await firstValueFrom(this.channelsService.get(url, { headers: { 'X-User-Id': userId } }))).data;
-      if (recipientResponse.status !== HttpStatus.OK) {
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          data: null,
-          message: "Failed retrieving channel data"
-        };
-      }
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        data: null,
-        message: "Failed retrieving channel data"
-      };
-    }
-
-    return {
-      status: HttpStatus.OK,
-      data: recipientResponse.data,
-      message: 'Channel retrieved successfully'
-    };
-  }
   update(id: number, updateMessageDto: UpdateMessageDto) {
     return `This action updates a #${id} message`;
   }
@@ -215,7 +192,8 @@ export class MessagesService {
       };
     }
 
-    const result = await firstValueFrom(this.channelsGRPCService.acknowledgeMessage({ userId, channelId, messageId }));
+    const result = await firstValueFrom(this.channelsService.acknowledgeMessage({ userId, channelId, messageId }));
+
     return result;
   }
 
@@ -224,6 +202,6 @@ export class MessagesService {
     createMap(mapper, Message, MessageResponseDTO);
     createMap(mapper, Attachment, AttachmentResponseDTO);
 
-    this.channelsGRPCService = this.client.getService<ChannelsService>('ChannelsService');
+    this.channelsService = this.client.getService<ChannelsService>('ChannelsService');
   }
 }
