@@ -4,13 +4,14 @@ import styled from "styled-components";
 import Image from "next/image";
 import { FaChevronRight } from "react-icons/fa6";
 import TextInput from "../text-input/text-input";
-import PrimaryButton from "../buttons/primary-button";
+import ButtonPrimary from "../buttons/button-primary";
 import Link from "next/link";
 import { QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CreateGuildDto } from "@/interfaces/dto/create-guild.dto";
 import { createGuild } from "@/services/guild/guild.service";
 import { GUILDS_CACHE } from "@/constants/query-keys";
 import { Guild } from "@/interfaces/guild";
+import { useGuildsStore } from "@/app/stores/guilds-store";
 
 const ModalContentContainer = styled.div`
     background-color: var(--modal-background);
@@ -103,6 +104,7 @@ export function CreateGuildModal({ onClose }: { onClose: () => void}) {
     const [errorMessage, setErrorMessage] = useState<string>();
 
     const queryClient = useQueryClient();
+    const {addGuild} = useGuildsStore();
 
     const { mutate: createGuildMutation, isPending } = useMutation({
         mutationFn: (dto: CreateGuildDto) => createGuild(dto),
@@ -112,13 +114,7 @@ export function CreateGuildModal({ onClose }: { onClose: () => void}) {
                 return;
             }
 
-            queryClient.setQueryData<Guild[]>([GUILDS_CACHE], (old) => {
-                if (!old) {
-                    return [];
-                }
-
-                return [...old, response.data!];
-            });
+            addGuild(response.data!);
 
             onClose();
         },
@@ -194,12 +190,12 @@ export function CreateGuildModal({ onClose }: { onClose: () => void}) {
                     <div className="w-full flex justify-between">
                         <button className="text-[14px] leading-[16px] px-[4px]" onClick={() => setActiveContent(ModalContent.Main)}>Back</button>
                         <div className="">
-                            <PrimaryButton
+                            <ButtonPrimary
                                 className="h-[38px] items-center"
                                 disabled={serverName.length === 0}
                                 onClick={() => handleCreateGuild()}>
                                 <p className="px-[16px] leading-[16px] text-[14px]">Create</p>
-                            </PrimaryButton>
+                            </ButtonPrimary>
                         </div>
                     </div>
                 </ModalFooterContainer>

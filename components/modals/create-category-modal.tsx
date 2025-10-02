@@ -12,8 +12,8 @@ import { MdClose } from "react-icons/md";
 import { PiHash } from "react-icons/pi";
 import { FaLock } from "react-icons/fa6";
 import Checkbox from "../checkbox/checkbox";
-import SecondaryButton from "../buttons/secondary-button";
-import PrimaryButton from "../buttons/primary-button";
+import ButtonSecondary from "../buttons/button-secondary";
+import ButtonPrimary from "../buttons/button-primary";
 import { useRouter } from "next/navigation";
 
 const ContentContainer = styled.div`
@@ -157,8 +157,8 @@ export function CreateCategoryModal({ guildId, onClose }: { guildId: string, onC
                     </ContentSection>
                 </ContentBody>
                 <ContentFooter>
-                    <SecondaryButton onClick={onClose} size="lg">Cancel</SecondaryButton>
-                    <PrimaryButton onClick={handleCreateChannel} disabled={category.name.length === 0 || isLoading} size="lg">Create Category</PrimaryButton>
+                    <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
+                    <ButtonPrimary onClick={handleCreateChannel} disabled={category.name.length === 0 || isLoading} size="lg">Create Category</ButtonPrimary>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

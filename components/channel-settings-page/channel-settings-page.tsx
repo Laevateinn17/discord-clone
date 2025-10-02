@@ -10,6 +10,7 @@ import { PiHash } from "react-icons/pi"
 import { ModalType } from "@/enums/modal-type.enum"
 import { useRouter } from "next/navigation"
 import { useModal } from "@/contexts/modal.context"
+import { ChannelOverviewSection } from "./channel-overview-section"
 
 interface ChannelSettingsPageProps {
     channel?: Channel;
@@ -29,13 +30,12 @@ export const SettingsSectionHeader = styled.h2`
 `
 
 export default function ChannelSettingsPage({channel, show, onClose }: ChannelSettingsPageProps) {
-    const { mutateAsync: logoutMutation } = useLogoutMutation();
     const { openModal } = useModal();
 
     const sidebarItems: SidebarItem[] = [
         {
             id: "overview",
-            page: undefined,
+            page: <ChannelOverviewSection channel={channel}/>,
             element: <p>Overview</p>
         },
         {
@@ -52,11 +52,6 @@ export default function ChannelSettingsPage({channel, show, onClose }: ChannelSe
 
     const [activeItem, setActiveItem] = useState<string>(sidebarItems[0].id);
     const router = useRouter();
-
-    async function handleLogout() {
-        await logoutMutation();
-        router.push("/login");
-    }
 
     function getActivePage(): ReactNode {
         const item = sidebarItems.find(i => i.id === activeItem);

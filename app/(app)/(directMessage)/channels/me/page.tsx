@@ -1,5 +1,5 @@
 "use client"
-import PrimaryButton from "@/components/buttons/primary-button";
+import ButtonPrimary from "@/components/buttons/button-primary";
 import styled from "styled-components";
 import { FormEvent, Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { UserStatus, UserStatusString } from "@/enums/user-status.enum";
@@ -141,7 +141,7 @@ export default function FriendListPage() {
         {
             id: "add-friend",
             show: () => true,
-            type: PrimaryButton,
+            type: ButtonPrimary,
             button: <p className="whitespace-nowrap">Add Friend</p>
         }
     ];

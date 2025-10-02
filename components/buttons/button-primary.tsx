@@ -19,14 +19,14 @@ interface PrimaryButtonProps {
 
 const Button = styled.button`
     display: flex;
-    background-color: var(--status-danger);
+    background-color: var(--button-primary);
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--text-primary);
     font-weight: 500;
 
     &.hover {
-        background-color: var(--status-danger-hover);
+        background-color: var(--button-primary-hover);
     }
 
     &.active {
@@ -57,7 +57,7 @@ const Button = styled.button`
 
 `
 
-export default function DangerButton({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: PrimaryButtonProps) {
+export default function ButtonPrimary({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: PrimaryButtonProps) {
     const [isHovering, setIsHovering] = useState(false);
 
     return (

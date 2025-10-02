@@ -79,6 +79,7 @@ function EditChannelButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement
 }
 
 export default function ChannelButton({ channel, collapse }: { channel: Channel, collapse: boolean }) {
+    console.log('channel button', channel)
     const [hover, setHover] = useState(false);
     const pathname = usePathname();
     const router = useRouter();

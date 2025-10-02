@@ -5,7 +5,7 @@ import Tooltip from "../tooltip/tooltip"
 import styled from "styled-components"
 import { LoadingIndicator } from "../loading-indicator/loading-indicator"
 
-interface PrimaryButtonProps {
+interface ButtonSecondaryProps {
     children: ReactNode
     onClick?: () => any
     isLoading?: boolean
@@ -44,7 +44,7 @@ const Button = styled.button`
 
 `
 
-export default function SecondaryButton({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: PrimaryButtonProps) {
+export default function ButtonSecondary({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: ButtonSecondaryProps) {
     const [isHovering, setIsHovering] = useState(false);
 
     return (

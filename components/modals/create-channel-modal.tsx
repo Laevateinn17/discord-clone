@@ -1,6 +1,6 @@
 import Checkbox from "@/components/checkbox/checkbox";
 import Modal from "@/components/modals/modal";
-import PrimaryButton from "@/components/buttons/primary-button";
+import ButtonPrimary from "@/components/buttons/button-primary";
 import TextInputSecondary from "@/components/text-input/text-input-secondary";
 import { useModal } from "@/contexts/modal.context";
 import { Channel } from "@/interfaces/channel";
@@ -9,7 +9,7 @@ import { FaLock } from "react-icons/fa6";
 import { MdClose } from "react-icons/md";
 import { PiHash } from "react-icons/pi";
 import styled from "styled-components";
-import SecondaryButton from "@/components/buttons/secondary-button";
+import ButtonSecondary from "@/components/buttons/button-secondary";
 import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { ChannelType } from "@/enums/channel-type.enum";
 import { createGuildChannel } from "@/services/channels/channels.service";
@@ -259,8 +259,8 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
                     </ContentSection>
                 </ContentBody>
                 <ContentFooter>
-                    <SecondaryButton onClick={onClose} size="lg">Cancel</SecondaryButton>
-                    <PrimaryButton onClick={handleCreateChannel} disabled={channel.name.length === 0 || isLoading} size="lg">Create Channel</PrimaryButton>
+                    <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
+                    <ButtonPrimary onClick={handleCreateChannel} disabled={channel.name.length === 0 || isLoading} size="lg">Create Channel</ButtonPrimary>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

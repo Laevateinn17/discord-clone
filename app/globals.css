@@ -68,7 +68,8 @@
   /* --button-primary-disabled: rgb(88, 101, 242) */
   --status-danger: 	hsl(359, 87%, 60%);
   --status-danger-hover: 	hsl(359, 87%, 50%);
-  --status-positive: rgb(67, 162, 90);
+  --status-positive: hsl(134, 41%, 45%);
+  --status-positive-hover: hsl(134, 41%, 35%);
   --channels-default: oklab(0.75264 0.00240251 -0.00813961);
 
   --shadow-high: 0 12px 24px 0 hsl(none 0% 0% / 0.24);

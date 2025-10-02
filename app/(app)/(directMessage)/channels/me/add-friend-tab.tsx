@@ -1,4 +1,4 @@
-import PrimaryButton from "@/components/buttons/primary-button";
+import ButtonPrimary from "@/components/buttons/button-primary";
 import { RELATIONSHIPS_CACHE } from "@/constants/query-keys";
 import Relationship from "@/interfaces/relationship";
 import { addFriend } from "@/services/relationships/relationships.service";
@@ -132,12 +132,12 @@ export function AddFriendTab() {
                     >
                     </AddFriendInput>
                     <AddFriendContainer>
-                        <PrimaryButton
+                        <ButtonPrimary
                             className="h-[32px] items-center text-[14px]"
                             disabled={usernameText.length === 0}
                             isLoading={isPending}>
                             Send Friend Request
-                        </PrimaryButton>
+                        </ButtonPrimary>
                     </AddFriendContainer>
                     <AddFriendMascotContainer>
                         <img src={"/add-friend-mascot.svg"} alt="" />

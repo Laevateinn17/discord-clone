@@ -1,6 +1,6 @@
 import Checkbox from "@/components/checkbox/checkbox";
 import Modal from "@/components/modals/modal";
-import PrimaryButton from "@/components/buttons/primary-button";
+import ButtonPrimary from "@/components/buttons/button-primary";
 import TextInputSecondary from "@/components/text-input/text-input-secondary";
 import { useModal } from "@/contexts/modal.context";
 import { Channel } from "@/interfaces/channel";
@@ -9,7 +9,7 @@ import { FaLock } from "react-icons/fa6";
 import { MdClose } from "react-icons/md";
 import { PiHash } from "react-icons/pi";
 import styled from "styled-components";
-import SecondaryButton from "@/components/buttons/secondary-button";
+import ButtonSecondary from "@/components/buttons/button-secondary";
 import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { ChannelType } from "@/enums/channel-type.enum";
 import { createGuildChannel, deleteChannel } from "@/services/channels/channels.service";
@@ -19,7 +19,7 @@ import { GUILDS_CACHE } from "@/constants/query-keys";
 import { Guild } from "@/interfaces/guild";
 import { useGuildDetailQuery } from "@/hooks/queries";
 import { ModalType } from "@/enums/modal-type.enum";
-import DangerButton from "../buttons/danger-button";
+import ButtonDanger from "../buttons/button-danger";
 import { useGetGuild, useGuildsStore } from "@/app/stores/guilds-store";
 
 const ContentContainer = styled.div`
@@ -209,8 +209,8 @@ export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onC
                     </ContentSection>
                 </ContentBody>
                 <ContentFooter>
-                    <SecondaryButton onClick={onClose} size="lg">Cancel</SecondaryButton>
-                    <DangerButton disabled={isLoading} onClick={handleCreateChannel} size="lg">Delete Channel</DangerButton>
+                    <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
+                    <ButtonDanger disabled={isLoading} onClick={handleCreateChannel} size="lg">Delete Channel</ButtonDanger>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

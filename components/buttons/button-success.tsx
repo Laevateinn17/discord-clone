@@ -5,7 +5,7 @@ import Tooltip from "../tooltip/tooltip"
 import styled from "styled-components"
 import { LoadingIndicator } from "../loading-indicator/loading-indicator"
 
-interface PrimaryButtonProps {
+interface ButtonSuccessProps {
     children: ReactNode
     onClick?: () => any
     isLoading?: boolean
@@ -19,14 +19,15 @@ interface PrimaryButtonProps {
 
 const Button = styled.button`
     display: flex;
-    background-color: var(--button-primary);
+    background-color: var(--status-positive);
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--text-primary);
-    font-weight: 500;
+    align-items: center;
+    font-weight: var(--font-weight-medium);
 
     &.hover {
-        background-color: var(--button-primary-hover);
+        background-color: var(--status-positive-hover);
     }
 
     &.active {
@@ -40,11 +41,18 @@ const Button = styled.button`
         cursor: not-allowed;
     }
 
+    &.sm {
+        padding: 4px 12px;
+        font-size: var(--text-sm);
+        line-height: var(--line-height-tight);
+        min-height: 32px;
+    }
 
     &.md {
         padding: 4px 12px;
         font-size: var(--text-base);
         line-height: var(--line-height-tight);
+        min-height: 32px;
     }
 
     &.lg {
@@ -57,7 +65,7 @@ const Button = styled.button`
 
 `
 
-export default function PrimaryButton({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: PrimaryButtonProps) {
+export default function ButtonSuccess({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: ButtonSuccessProps) {
     const [isHovering, setIsHovering] = useState(false);
 
     return (

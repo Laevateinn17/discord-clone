@@ -2,7 +2,7 @@
 import styles from './styles.module.css'
 import TextInput from '@/components/text-input/text-input'
 import TextLink from '@/components/text-link/text-link'
-import PrimaryButton from "@/components/buttons/primary-button"
+import ButtonPrimary from "@/components/buttons/button-primary"
 import DateInput from "@/components/date-input/date-input"
 import Checkbox from "@/components/checkbox/checkbox"
 import { FormEvent, useEffect, useRef, useState } from "react"
@@ -191,9 +191,9 @@ export default function Register() {
                             </Checkbox>
                         </div>
                         <div className="">
-                            <PrimaryButton isLoading={isSubmitting}>
+                            <ButtonPrimary isLoading={isSubmitting}>
                                 <p>Continue</p>
-                            </PrimaryButton>
+                            </ButtonPrimary>
                         </div>
                         <div className={styles["tos-text"]}>
                             <p>By registering, you agree to Discord&apos;s <TextLink text="Term of Service" fontSize={12} href="" /> and <TextLink fontSize={12} text="Privacy Policy" href="" /></p>

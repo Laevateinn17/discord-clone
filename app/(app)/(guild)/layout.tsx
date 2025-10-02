@@ -60,7 +60,7 @@ export default function Page({ children }: { children: ReactNode }) {
     const { showMenu } = useContextMenu();
     useEffect(() => {
         if (!guild) {
-            router.push('channels/me');
+            router.push('/channels/me');
             return;
         }
 

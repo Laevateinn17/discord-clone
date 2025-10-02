@@ -3,7 +3,7 @@ import Image from 'next/image'
 import styles from './styles.module.css'
 import TextInput from '@/components/text-input/text-input'
 import TextLink from '@/components/text-link/text-link'
-import PrimaryButton from "@/components/buttons/primary-button"
+import ButtonPrimary from "@/components/buttons/button-primary"
 import { FormEvent, FormEventHandler, useEffect, useReducer, useRef, useState } from "react"
 import { login, refreshToken } from "@/services/auth/auth.service"
 import { Response } from "@/interfaces/response"
@@ -111,9 +111,9 @@ export default function Login() {
                             <TextLink text="Forgot your password?" href="" />
                         </div>
                         <div className="">
-                            <PrimaryButton isLoading={isSubmitting}>
+                            <ButtonPrimary isLoading={isSubmitting}>
                                 <p>Log In</p>
-                            </PrimaryButton>
+                            </ButtonPrimary>
                         </div>
                         <div className={styles["register-text"]}>
                             <span style={{ color: "var(--header-secondary)" }}>Need an account?{" "}</span>

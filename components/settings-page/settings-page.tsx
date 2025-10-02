@@ -30,7 +30,7 @@ interface SidebarItem {
     element: ReactNode
 }
 
-export const SettingsSectionHeader = styled.h2`
+export const SettingsSectionHeader = styled.h3`
     font-weight: bold;
     font-size: 24px;
 `
