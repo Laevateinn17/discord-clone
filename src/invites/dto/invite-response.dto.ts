@@ -8,6 +8,9 @@ export class InviteResponseDTO {
     code: string;
 
     @AutoMap()
+    maxAge: number;
+
+    @AutoMap()
     inviterId: string;
 
     @AutoMap()

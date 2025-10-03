@@ -152,14 +152,18 @@ export class ChannelsController {
 
   @Post(':channelId/invites')
   async createOrGetInvite(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response, @Body(new ValidationPipe({transform: true})) dto: CreateInviteDto) {
-    if (!userId || userId.length === 0) {
-      return res.status(HttpStatus.UNAUTHORIZED).send();
-    }
-
     dto.inviterId = userId;
     dto.channelId = channelId;
 
     const result = await this.channelsService.createOrGetInvite(dto);
+    const {status} = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Get(':channelId/invites')
+  async getInvites(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
+    const result = await this.channelsService.getChannelInvites(userId, channelId);
     const {status} = result;
 
     return res.status(status).json(result);

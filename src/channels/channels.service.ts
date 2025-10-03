@@ -885,7 +885,49 @@ export class ChannelsService {
     return inviteResponse;
   }
 
-  async update(userId: string, dto: UpdateChannelDTO) {
+  async getChannelInvites(userId: string, channelId: string): Promise<Result<InviteResponseDTO[]>> {
+    const channel = await this.channelsRepository.findOne({ where: { id: channelId } });
+
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel not found'
+      }
+    }
+
+    if (channel.type === ChannelType.DM) {
+      return {
+        status: HttpStatus.NOT_IMPLEMENTED,
+        data: null,
+        message: 'This feature has not been implemented for DM channels'
+      }
+    }
+
+    const guild = await this.guildsRepository.findOneBy({ id: channel.guildId });
+
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Guild not found'
+      }
+    }
+
+    if (guild.ownerId !== userId) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'Only guild owner is allowed to perform this action'
+      }
+    }
+
+    const invites = await this.invitesService.getChannelInvites(channelId);
+    
+    return invites;
+  }
+
+  async update(userId: string, dto: UpdateChannelDTO): Promise<Result<ChannelResponseDTO>> {
     if (!userId || !dto.channelId) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -943,7 +985,7 @@ export class ChannelsService {
 
     return {
       status: HttpStatus.OK,
-      data: channel,
+      data: payload,
       message: "Channel updated successfully"
     };
   }

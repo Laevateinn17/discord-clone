@@ -28,7 +28,7 @@ export class InvitesService {
       }
     }
 
-    const existingInvite = await this.findOne(dto.channelId);
+    const existingInvite = await this.findOne(dto.channelId, dto.maxAge);
     if (existingInvite.status === HttpStatus.OK) {
       return existingInvite;
     }
@@ -36,7 +36,6 @@ export class InvitesService {
     const code = await this.generateInviteCode();
 
     const invite = mapper.map(dto, CreateInviteDto, Invite);
-    console.log(invite);
 
     if (dto.maxAge) {
       const expiresDate = new Date();
@@ -66,12 +65,20 @@ export class InvitesService {
     }
   }
 
-  findAll() {
-    return `This action returns all invites`;
+  async getChannelInvites(channelId: string): Promise<Result<InviteResponseDTO[]>> {
+    const invites = await this.invitesRepository.findBy({channelId});
+
+    const payload: InviteResponseDTO[] = invites.map(invite => mapper.map(invite, Invite, InviteResponseDTO));
+
+    return {
+      status: HttpStatus.OK,
+      data: payload,
+      message: 'Invites retrieved successfully'
+    };
   }
 
-  async findOne(channelId: string): Promise<Result<InviteResponseDTO>> {
-    const existingInvite = await this.invitesRepository.findOneBy({ channelId });
+  async findOne(channelId: string, maxAge: number): Promise<Result<InviteResponseDTO>> {
+    const existingInvite = await this.invitesRepository.findOneBy({ channelId, maxAge });
 
     const payload: InviteResponseDTO = mapper.map(existingInvite, Invite, InviteResponseDTO);
 
@@ -87,6 +94,35 @@ export class InvitesService {
       status: HttpStatus.OK,
       data: payload,
       message: 'Invite retrieved successfully'
+    };
+  }
+
+  async deleteInvite(userId: string, inviteId: string): Promise<Result<null>> {
+    const invite = await this.invitesRepository.findOneBy({id: inviteId});
+
+    if (!invite) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Invite does not exist'
+      };
+    }
+
+    try {
+      await this.invitesRepository.delete({id: invite.id});
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while deleting invite'
+      };
+    }
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      data: null,
+      message: 'Invite deleted successfully'
     };
   }
 

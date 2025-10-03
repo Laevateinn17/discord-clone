@@ -26,6 +26,9 @@ export class Invite {
     guildId?: string;
 
     @AutoMap()
+    @Column({name: 'max_age', nullable: true})
+    maxAge?: number;
+    @AutoMap()
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 
