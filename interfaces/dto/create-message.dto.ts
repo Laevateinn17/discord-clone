@@ -4,5 +4,4 @@ export interface CreateMessageDto {
     channelId: string
     mentions: string[]
     attachments: File[]
-    createdAt: Date
 }

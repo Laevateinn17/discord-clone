@@ -10,7 +10,7 @@ export interface TextInputProps {
     leftElement?: ReactNode
     rightElement?: ReactNode
     onChange: (val: string) => any
-    error: boolean
+    error?: boolean
 }
 
 const Container = styled.div`

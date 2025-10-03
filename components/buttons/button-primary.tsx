@@ -21,9 +21,10 @@ const Button = styled.button`
     display: flex;
     background-color: var(--button-primary);
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--text-primary);
     font-weight: 500;
+    align-items: center;
 
     &.hover {
         background-color: var(--button-primary-hover);

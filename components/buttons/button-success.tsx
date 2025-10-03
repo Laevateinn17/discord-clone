@@ -7,6 +7,7 @@ import { LoadingIndicator } from "../loading-indicator/loading-indicator"
 
 interface ButtonSuccessProps {
     children: ReactNode
+    type?: "primary" | "secondary"
     onClick?: () => any
     isLoading?: boolean
     tooltip?: string
@@ -19,16 +20,26 @@ interface ButtonSuccessProps {
 
 const Button = styled.button`
     display: flex;
-    background-color: var(--status-positive);
-    border: 1px solid transparent;
     border-radius: 8px;
     color: var(--text-primary);
     align-items: center;
     font-weight: var(--font-weight-medium);
 
-    &.hover {
-        background-color: var(--status-positive-hover);
+    &.primary {
+        background-color: var(--status-positive);
+        border: 1px solid transparent;
+
+        &.hover {
+            background-color: var(--status-positive-hover);
+        }
     }
+    &.secondary {
+        border: 1px solid var(--status-positive);
+        &.hover {
+            background-color: var(--status-positive);
+        }
+    }
+
 
     &.active {
         background-color: var(--button-primary-selected);
@@ -65,11 +76,11 @@ const Button = styled.button`
 
 `
 
-export default function ButtonSuccess({ className = "", size = 'md', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: ButtonSuccessProps) {
+export default function ButtonSuccess({ className = "", size = 'md', type = 'primary', children, onClick, isLoading, disabled, tooltipPosition, tooltip, tooltipSize }: ButtonSuccessProps) {
     const [isHovering, setIsHovering] = useState(false);
 
     return (
-        <Button className={`${className} ${isHovering ? "hover" : ""} ${disabled || isLoading ? "disabled" : ""} ${size}`}
+        <Button className={`${type} ${className} ${isHovering ? "hover" : ""} ${disabled || isLoading ? "disabled" : ""} ${size}`}
             onClick={isLoading !== true ? onClick : undefined}
             disabled={disabled || isLoading === true}
             onMouseEnter={() => { if (!disabled) setIsHovering(true) }}

@@ -7,4 +7,5 @@ export enum ModalType {
     CHANNEL_SETTINGS,
     GUILD_SETTINGS,
     DELETE_CHANNEL,
+    CREATE_INVITE,
 }

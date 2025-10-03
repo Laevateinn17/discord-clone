@@ -35,7 +35,6 @@ export async function sendMessage(dto: CreateMessageDto): Promise<Response<Messa
     const formData = new FormData()
     formData.append('content', dto.content);
     formData.append('channelId', dto.channelId);
-    formData.append('createdAt', dto.createdAt.toISOString());
 
     for (const att of dto.attachments) {
         formData.append('files', att);

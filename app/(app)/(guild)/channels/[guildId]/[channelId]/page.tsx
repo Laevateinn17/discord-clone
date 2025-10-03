@@ -24,6 +24,7 @@ import { useIsUserTyping, useTypingUsersFromChannel, useUserTypingStore } from "
 import UserAvatar from "@/components/user-avatar/user-avatar";
 import { useUserPresenceStore } from "@/app/stores/user-presence-store";
 import { useGuildsStore } from "@/app/stores/guilds-store";
+import { useSendMessageGuildMutation } from "@/hooks/mutations";
 
 const ChatContainer = styled.div`
     display: flex;
@@ -211,7 +212,7 @@ function TextInputItem({ channel, onSubmit }: { channel: Channel, onSubmit: (mes
     function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            const dto: CreateMessageDto = { channelId: channel.id as string, content: text, attachments: attachments, mentions: [] as string[], createdAt: new Date() };
+            const dto: CreateMessageDto = { channelId: channel.id as string, content: text, attachments: attachments, mentions: [] as string[]};
             onSubmit(dto);
             onInputChanged('');
         }
@@ -252,6 +253,7 @@ export default function Page() {
 
     const channel = guild?.channels.find(ch => ch.id == channelId);
     const { data: messages } = useMessagesQuery(channelId! as string);
+    const { mutateAsync: sendMessage } = useSendMessageGuildMutation(guildId as string);
     const groupedMessages = messages?.reduce((groups, message) => {
         const key = message.createdAt.toLocaleDateString();
 
@@ -273,73 +275,54 @@ export default function Page() {
     const onlineMembers = channel ? channel.recipients.filter(re => isUserOnline(re.id)) : [];
     const offlineMembers = channel ? channel.recipients.filter(re => !isUserOnline(re.id)) : [];
 
-    async function handleSubmit(dto: CreateMessageDto) {
-        const id = `pending-${messages!.length}`
-        const createdAt = new Date();
-        const message: Message = {
-            id: id,
-            createdAt: createdAt,
-            updatedAt: createdAt,
-            senderId: user!.id,
-            status: MessageStatus.Pending,
-            attachments: [],
-            channelId: channelId as string,
-            content: dto.content,
-            mentions: dto.mentions,
-            is_pinned: false,
-        };
+    // async function handleSubmit(dto: CreateMessageDto) {
 
-        if (channel) {
-            updateChannelLastRead(guildId as string, channelId as string, message.id);
-        }
+    //     queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
+    //         if (!old) {
+    //             return [];
+    //         }
 
+    //         const newMessages = [...old, message];
 
-        queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-            if (!old) {
-                return [];
-            }
+    //         return newMessages;
+    //     })
+    //     const response = await sendMessage(dto);
 
-            const newMessages = [...old, message];
+    //     if (!response.success) {
+    //         queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
+    //             if (!old) {
+    //                 return [];
+    //             }
 
-            return newMessages;
-        })
-        const response = await sendMessage(dto);
+    //             const newMessages = [...old].map(m => {
+    //                 if (m.id === message.id) {
+    //                     m.status = MessageStatus.Error;
+    //                 }
+    //                 return m;
+    //             });
+    //             return newMessages;
+    //         })
+    //         return;
+    //     }
 
-        if (!response.success) {
-            queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-                if (!old) {
-                    return [];
-                }
+    //     queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
+    //         if (!old) {
+    //             return [];
+    //         }
+    //         const data = response.data!;
+    //         data.createdAt = new Date(data.createdAt);
 
-                const newMessages = [...old].map(m => {
-                    if (m.id === message.id) {
-                        m.status = MessageStatus.Error;
-                    }
-                    return m;
-                });
-                return newMessages;
-            })
-            return;
-        }
-
-        queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-            if (!old) {
-                return [];
-            }
-            const data = response.data!;
-            data.createdAt = new Date(data.createdAt);
-
-            const newMessages = [...old].map(m => {
-                if (m.id === message.id) {
-                    return response.data!;
-                }
-                return m;
-            });
-            return newMessages;
-        });
-        if (!channel) return;
-        updateChannelLastRead(guildId as string, channelId as string, response.data!.id);
-    }
+    //         const newMessages = [...old].map(m => {
+    //             if (m.id === message.id) {
+    //                 return response.data!;
+    //             }
+    //             return m;
+    //         });
+    //         return newMessages;
+    //     });
+    //     if (!channel) return;
+    //     updateChannelLastRead(guildId as string, channelId as string, response.data!.id);
+    // }
 
 
     if (!channel) {
@@ -381,7 +364,7 @@ export default function Page() {
                     <ChatInputWrapper>
                         <InputContainer>
                             <UploadItemContainer><FaCirclePlus size={20} /></UploadItemContainer>
-                            <TextInputItem channel={channel} onSubmit={handleSubmit} />
+                            <TextInputItem channel={channel} onSubmit={sendMessage} />
                         </InputContainer>
                         {typingUsers.length > 0 &&
                             <div className="ml-2 text-[12px] h-[24px] items-center flex absolute w-full">

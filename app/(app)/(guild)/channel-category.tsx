@@ -58,7 +58,7 @@ export function ChannelCategory({ channel, children }: { channel: Channel, child
     const [collapse, setCollapse] = useState(false);
     const [hoverAddChannel, setHoverAddChannel] = useState(false);
     const pathname = usePathname();
-
+    
     return (
         <Container>
             <CategoryContainer>

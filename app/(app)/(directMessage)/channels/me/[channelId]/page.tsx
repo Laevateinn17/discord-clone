@@ -22,6 +22,7 @@ import { FaCirclePlus } from "react-icons/fa6";
 import styled from "styled-components";
 import { DMChannelHeader } from "./channel-header";
 import { LINE_HEIGHT, MAX_LINE_COUNT, VERTICAL_PADDING } from "@/constants/user-interface";
+import { useSendMessageMutation } from "@/hooks/mutations";
 
 
 const ChatContainer = styled.div`
@@ -159,7 +160,7 @@ function TextInputItem({ channel, onSubmit }: { channel: Channel, onSubmit: (mes
     function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            const dto: CreateMessageDto = { channelId: channel.id as string, content: text, attachments: attachments, mentions: [] as string[], createdAt: new Date() };
+            const dto: CreateMessageDto = { channelId: channel.id as string, content: text, attachments: attachments, mentions: [] as string[], };
             onSubmit(dto);
             onInputChanged('');
         }
@@ -224,11 +225,7 @@ export default function Page() {
     const queryClient = useQueryClient();
     const { user } = useCurrentUserStore();
     const { getUserProfile } = useUserProfileStore();
-    const { mutate: sendMessageMutation } = useMutation({
-        mutationFn: (dto: CreateMessageDto) => sendMessage(dto),
-        onSuccess: (response) => {
-        }
-    });
+    const { mutateAsync: sendMessage } = useSendMessageMutation();
 
     const typingUsers = useTypingUsersFromChannel(channelId as string);
 
@@ -237,74 +234,6 @@ export default function Page() {
 
         updateChannel({ ...channel, lastReadId: messageId })
         acknowledgeMessage(channelId, messageId);
-    }
-
-    async function handleSubmit(dto: CreateMessageDto) {
-        const id = `pending-${messages!.length}`
-        const createdAt = new Date();
-        const message: Message = {
-            id: id,
-            createdAt: createdAt,
-            updatedAt: createdAt,
-            senderId: user!.id,
-            status: MessageStatus.Pending,
-            attachments: [],
-            channelId: channelId as string,
-            content: dto.content,
-            mentions: dto.mentions,
-            is_pinned: false
-        };
-
-        if (channel) {
-            updateChannel({ ...channel!, lastReadId: message.id });
-        }
-
-
-        queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-            if (!old) {
-                return [];
-            }
-
-            const newMessages = [...old, message];
-
-            return newMessages;
-        })
-        const response = await sendMessage(dto);
-
-        if (!response.success) {
-            queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-                if (!old) {
-                    return [];
-                }
-
-                const newMessages = [...old].map(m => {
-                    if (m.id === message.id) {
-                        m.status = MessageStatus.Error;
-                    }
-                    return m;
-                });
-                return newMessages;
-            })
-            return;
-        }
-
-        queryClient.setQueryData<Message[]>([MESSAGES_CACHE, channelId], (old) => {
-            if (!old) {
-                return [];
-            }
-            const data = response.data!;
-            data.createdAt = new Date(data.createdAt);
-
-            const newMessages = [...old].map(m => {
-                if (m.id === message.id) {
-                    return response.data!;
-                }
-                return m;
-            });
-            return newMessages;
-        });
-        if (!channel) return;
-        updateChannel({ ...channel, lastReadId: response.data!.id });
     }
 
     useEffect(() => {
@@ -368,7 +297,7 @@ export default function Page() {
                 <ChatInputWrapper>
                     <InputContainer>
                         <UploadItemContainer><FaCirclePlus size={20} /></UploadItemContainer>
-                        <TextInputItem channel={channel} onSubmit={handleSubmit} />
+                        <TextInputItem channel={channel} onSubmit={sendMessage} />
                     </InputContainer>
                     {typingUsers.length > 0 &&
                         <div className="ml-2 text-[12px] h-[24px] items-center flex absolute w-full">

@@ -13,7 +13,6 @@ const ModalBackground = styled.div`
     justify-content: center;
     align-items: center;
     display: flex;
-
 `
 
 

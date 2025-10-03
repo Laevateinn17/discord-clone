@@ -50,12 +50,15 @@ const ActionButtonContainer = styled.div`
     }
 `
 
-function CreateInviteButton() {
+function CreateInviteButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement>) => void }) {
     const [hover, setHover] = useState(false)
     return (
 
-        <div className="relative">
-            <svg onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} className={`${hover ? 'text-[var(--interactive-hover)]' : ''}`} aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14.5 8a3 3 0 1 0-2.7-4.3c-.2.4.06.86.44 1.12a5 5 0 0 1 2.14 3.08c.01.06.06.1.12.1ZM16.62 13.17c-.22.29-.65.37-.92.14-.34-.3-.7-.57-1.09-.82-.52-.33-.7-1.05-.47-1.63.11-.27.2-.57.26-.87.11-.54.55-1 1.1-.92 1.6.2 3.04.92 4.15 1.98.3.27-.25.95-.65.95a3 3 0 0 0-2.38 1.17ZM15.19 15.61c.13.16.02.39-.19.39a3 3 0 0 0-1.52 5.59c.2.12.26.41.02.41h-8a.5.5 0 0 1-.5-.5v-2.1c0-.25-.31-.33-.42-.1-.32.67-.67 1.58-.88 2.54a.2.2 0 0 1-.2.16A1.5 1.5 0 0 1 2 20.5a7.5 7.5 0 0 1 13.19-4.89ZM9.5 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 22Z"></path><path fill="currentColor" d="M19 14a1 1 0 0 1 1 1v3h3a1 1 0 0 1 0 2h-3v3a1 1 0 0 1-2 0v-3h-3a1 1 0 1 1 0-2h3v-3a1 1 0 0 1 1-1Z"></path></svg>
+        <div className="relative"
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            onClick={onClick}>
+            <svg className={`${hover ? 'text-[var(--interactive-hover)]' : ''}`} aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14.5 8a3 3 0 1 0-2.7-4.3c-.2.4.06.86.44 1.12a5 5 0 0 1 2.14 3.08c.01.06.06.1.12.1ZM16.62 13.17c-.22.29-.65.37-.92.14-.34-.3-.7-.57-1.09-.82-.52-.33-.7-1.05-.47-1.63.11-.27.2-.57.26-.87.11-.54.55-1 1.1-.92 1.6.2 3.04.92 4.15 1.98.3.27-.25.95-.65.95a3 3 0 0 0-2.38 1.17ZM15.19 15.61c.13.16.02.39-.19.39a3 3 0 0 0-1.52 5.59c.2.12.26.41.02.41h-8a.5.5 0 0 1-.5-.5v-2.1c0-.25-.31-.33-.42-.1-.32.67-.67 1.58-.88 2.54a.2.2 0 0 1-.2.16A1.5 1.5 0 0 1 2 20.5a7.5 7.5 0 0 1 13.19-4.89ZM9.5 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 22Z"></path><path fill="currentColor" d="M19 14a1 1 0 0 1 1 1v3h3a1 1 0 0 1 0 2h-3v3a1 1 0 0 1-2 0v-3h-3a1 1 0 1 1 0-2h3v-3a1 1 0 0 1 1-1Z"></path></svg>
             <Tooltip
                 position="top"
                 show={hover}
@@ -68,7 +71,10 @@ function EditChannelButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement
     const [hover, setHover] = useState(false);
 
     return (
-        <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={onClick}>
+        <div className="relative"
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            onClick={onClick}>
             <svg className={`${hover ? 'text-[var(--interactive-hover)]' : ''}`} aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fillRule="evenodd" d="M10.56 1.1c-.46.05-.7.53-.64.98.18 1.16-.19 2.2-.98 2.53-.8.33-1.79-.15-2.49-1.1-.27-.36-.78-.52-1.14-.24-.77.59-1.45 1.27-2.04 2.04-.28.36-.12.87.24 1.14.96.7 1.43 1.7 1.1 2.49-.33.8-1.37 1.16-2.53.98-.45-.07-.93.18-.99.64a11.1 11.1 0 0 0 0 2.88c.06.46.54.7.99.64 1.16-.18 2.2.19 2.53.98.33.8-.14 1.79-1.1 2.49-.36.27-.52.78-.24 1.14.59.77 1.27 1.45 2.04 2.04.36.28.87.12 1.14-.24.7-.95 1.7-1.43 2.49-1.1.8.33 1.16 1.37.98 2.53-.07.45.18.93.64.99a11.1 11.1 0 0 0 2.88 0c.46-.06.7-.54.64-.99-.18-1.16.19-2.2.98-2.53.8-.33 1.79.14 2.49 1.1.27.36.78.52 1.14.24.77-.59 1.45-1.27 2.04-2.04.28-.36.12-.87-.24-1.14-.96-.7-1.43-1.7-1.1-2.49.33-.8 1.37-1.16 2.53-.98.45.07.93-.18.99-.64a11.1 11.1 0 0 0 0-2.88c-.06-.46-.54-.7-.99-.64-1.16.18-2.2-.19-2.53-.98-.33-.8.14-1.79 1.1-2.49.36-.27.52-.78.24-1.14a11.07 11.07 0 0 0-2.04-2.04c-.36-.28-.87-.12-1.14.24-.7.96-1.7 1.43-2.49 1.1-.8-.33-1.16-1.37-.98-2.53.07-.45-.18-.93-.64-.99a11.1 11.1 0 0 0-2.88 0ZM16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd"></path></svg>
             <Tooltip
                 position="top"
@@ -79,15 +85,12 @@ function EditChannelButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement
 }
 
 export default function ChannelButton({ channel, collapse }: { channel: Channel, collapse: boolean }) {
-    console.log('channel button', channel)
     const [hover, setHover] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
 
     const [active, setActive] = useState(false);
     const { openModal } = useModal();
-    const { getGuild } = useGuildsStore();
-    const guild = getGuild(channel.guildId);
 
     useEffect(() => {
         setActive(pathname.includes(channel.id));
@@ -106,7 +109,10 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                             <p>{channel.name}</p>
                         </ChannelInfo>
                         <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
-                            <CreateInviteButton />
+                            <CreateInviteButton onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(ModalType.CREATE_INVITE, {channelId: channel.id, guildId: channel.guildId});
+                            }} />
                             <EditChannelButton onClick={(e) => {
                                 e.stopPropagation();
                                 openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
@@ -120,7 +126,10 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                             <p>{channel.name}</p>
                         </ChannelInfo>
                         <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
-                            <CreateInviteButton />
+                            <CreateInviteButton onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(ModalType.CREATE_INVITE, {channelId: channel.id, guildId: channel.guildId});
+                            }} />
                             <EditChannelButton onClick={(e) => {
                                 e.stopPropagation();
                                 openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
