@@ -6,11 +6,11 @@ import styled from "styled-components";
 export interface TextInputProps {
     type?: "text" | "password" | "number"
     value: string
-    errorMessage?: string | null
     placeholder?: string
     leftElement?: ReactNode
     rightElement?: ReactNode
     onChange: (val: string) => any
+    error: boolean
 }
 
 const Container = styled.div`
@@ -27,8 +27,12 @@ const Container = styled.div`
     &.focus {
         outline: 1px solid var(--input-focused);
     }
+
+    &.error {
+    outline: 1px solid var(--status-danger);
+    }
 `
-export default function TextInputSecondary({ leftElement, rightElement, type = "text", placeholder, value, onChange }: TextInputProps) {
+export default function TextInputSecondary({ leftElement, rightElement, type = "text", placeholder, value, onChange, error }: TextInputProps) {
     const [focus, setFocus] = useState(false);
     const helperTextContainerRef = useRef<HTMLDivElement>(null!);
     const [maxHeight, setMaxHeight] = useState("0px");
@@ -41,7 +45,7 @@ export default function TextInputSecondary({ leftElement, rightElement, type = "
     }, [focus])
 
     return (
-        <Container className={`${focus ? 'focus' : ''}`} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}>
+        <Container className={`${focus ? 'focus' : ''}${error ? ' error' : ''}`} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}>
             {leftElement}
             <input className={`${styles['input-transparent']}`} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
             {rightElement}

@@ -109,7 +109,7 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                             <CreateInviteButton />
                             <EditChannelButton onClick={(e) => {
                                 e.stopPropagation();
-                                openModal(ModalType.CHANNEL_SETTINGS, { channel: channel })
+                                openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
                             }} />
                         </ActionButtonContainer>
                     </Fragment>
@@ -121,7 +121,10 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                         </ChannelInfo>
                         <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
                             <CreateInviteButton />
-                            <EditChannelButton onClick={() => openModal(ModalType.CHANNEL_SETTINGS, { channel })} />
+                            <EditChannelButton onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
+                            }} />
                         </ActionButtonContainer>
                     </Fragment>
             }

@@ -402,7 +402,7 @@ export default function Page() {
                                     const recipient = userProfiles[channel.recipients[0].id];
 
                                     return (
-                                        <MemberItem key={re.id} onClick={() => router.push(`/channels/me/${channel.id}`)}>
+                                        <MemberItem key={re.id}>
                                             <div className="mr-[12px]">
                                                 <UserAvatar user={recipient} showStatus={true} isTyping={isUserTyping(channel.id, recipient.id)} />
                                             </div>
@@ -423,7 +423,7 @@ export default function Page() {
                                     const recipient = userProfiles[channel.recipients[0].id];
 
                                     return (
-                                        <MemberItem key={re.id} onClick={() => router.push(`/channels/me/${channel.id}`)}>
+                                        <MemberItem key={re.id}>
                                             <div className="mr-[12px]">
                                                 <UserAvatar user={recipient} showStatus={true} isTyping={isUserTyping(channel.id, recipient.id)} />
                                             </div>

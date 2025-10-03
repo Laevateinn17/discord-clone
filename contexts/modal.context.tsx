@@ -46,7 +46,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
             {modal.type === ModalType.CREATE_CATEGORY && <CreateCategoryModal guildId={modal.data.guildId} onClose={closeModal} />}
             {modal.type === ModalType.DELETE_CHANNEL && <DeleteChannelModal channel={modal.data.channel} onClose={closeModal} />}
             <SettingsPage show={modal.type === ModalType.SETTINGS} onClose={closeModal} />
-            <ChannelSettingsPage channel={channelSettingsModal.data?.channel} show={channelSettingsModal.type === ModalType.CHANNEL_SETTINGS} onClose={() => closeModal(ModalType.CHANNEL_SETTINGS)} />
+            <ChannelSettingsPage channelId={channelSettingsModal.data?.channelId} guildId={channelSettingsModal.data?.guildId} show={channelSettingsModal.type === ModalType.CHANNEL_SETTINGS} onClose={() => closeModal(ModalType.CHANNEL_SETTINGS)} />
         </ModalContext.Provider>
     );
 }

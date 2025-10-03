@@ -7,6 +7,8 @@ import ButtonSuccess from "../buttons/button-success"
 import { useGuildsQuery } from "@/hooks/queries"
 import { useGuildsStore } from "@/app/stores/guilds-store"
 import { updateChannel } from "@/services/channels/channels.service"
+import { MdInfo } from "react-icons/md"
+import { error } from "console"
 
 const Header = styled.h2`
     font-weight: bold;
@@ -49,7 +51,6 @@ const SaveChangesContainer = styled.div`
     p {
         line-height: 20px;
         font-weight: var(--font-weight-medium);
-        margin-bottom: 8px;
     }
 `
 
@@ -57,6 +58,15 @@ const SaveChangesButtonLayout = styled.div`
     display: flex;
     align-items: center;
     gap: 8px;
+`
+
+const ErrorMessage = styled.p`
+    display: flex;
+    color: var(--text-danger);
+    font-size: var(--text-xs);
+    margin-top: 4px;
+    gap: 4px;
+    align-items: end;
 `
 
 
@@ -70,7 +80,7 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
     const [isLoading, setIsLoading] = useState(false)
     const haveChanges = channelName !== channel.name;
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const {updateChannel: updateGuildChannel} = useGuildsStore();
+    const { updateChannel: updateGuildChannel } = useGuildsStore();
 
     function resetChanges() {
         setChannelName(channel!.name ?? "");
@@ -83,7 +93,7 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
         }
 
         setIsLoading(true);
-        const response = await updateChannel(channel!.id, {name: channelName});
+        const response = await updateChannel(channel!.id, { name: channelName });
         setIsLoading(false);
 
         if (!response.success) {
@@ -99,7 +109,7 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
         return;
     }
 
-    
+
 
     return (
         <div className="flex flex-col gap-[16px] w-full relative">
@@ -107,8 +117,11 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
                 <Header>Overview</Header>
                 <div className="">
                     <Label>Channel Name</Label>
-                    <TextInputSecondary errorMessage={errorMessage} onChange={(v) => setChannelName(v)} value={channelName} />
+                    <div className="h-[40px]">
+                        <TextInputSecondary error={errorMessage !== null} onChange={(v) => setChannelName(v)} value={channelName} />
+                    </div>
                 </div>
+                {errorMessage && <ErrorMessage><MdInfo size={14}/>{errorMessage}</ErrorMessage>}
             </div>
             <SaveChangesOverlay className={haveChanges ? 'active' : ''}>
                 <SaveChangesContainer>

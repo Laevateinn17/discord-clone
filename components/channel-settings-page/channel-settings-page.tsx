@@ -11,9 +11,11 @@ import { ModalType } from "@/enums/modal-type.enum"
 import { useRouter } from "next/navigation"
 import { useModal } from "@/contexts/modal.context"
 import { ChannelOverviewSection } from "./channel-overview-section"
+import { useGuildsStore } from "@/app/stores/guilds-store"
 
 interface ChannelSettingsPageProps {
-    channel?: Channel;
+    guildId: string;
+    channelId: string
     show: boolean;
     onClose: () => any;
 }
@@ -29,13 +31,16 @@ export const SettingsSectionHeader = styled.h2`
     font-size: 24px;
 `
 
-export default function ChannelSettingsPage({channel, show, onClose }: ChannelSettingsPageProps) {
+export default function ChannelSettingsPage({ channelId, guildId, show, onClose }: ChannelSettingsPageProps) {
     const { openModal } = useModal();
+    const { getGuild } = useGuildsStore();
+    const guild = getGuild(guildId);
+    const channel = guild?.channels.find(ch => ch.id === channelId);
 
     const sidebarItems: SidebarItem[] = [
         {
             id: "overview",
-            page: <ChannelOverviewSection channel={channel}/>,
+            page: <ChannelOverviewSection channel={channel} />,
             element: <p>Overview</p>
         },
         {
