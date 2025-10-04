@@ -1,7 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { UpdateInviteDto } from './dto/update-invite.dto';
-import { Repository } from "typeorm";
+import { MoreThan, Repository } from "typeorm";
 import { Invite } from "./entities/invite.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { generateRandomString } from "src/helpers/string";
@@ -20,6 +20,7 @@ export class InvitesService {
 
   ) { }
   async create(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
+    console.log('creating invite');
     if (!dto.inviterId || !dto.channelId) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -58,6 +59,7 @@ export class InvitesService {
 
     const payload: InviteResponseDTO = mapper.map(invite, Invite, InviteResponseDTO);
 
+    console.log('returning invite');
     return {
       status: HttpStatus.OK,
       data: payload,
@@ -66,7 +68,7 @@ export class InvitesService {
   }
 
   async getChannelInvites(channelId: string): Promise<Result<InviteResponseDTO[]>> {
-    const invites = await this.invitesRepository.findBy({channelId});
+    const invites = await this.invitesRepository.findBy({channelId, expiresAt: MoreThan(new Date())});
 
     const payload: InviteResponseDTO[] = invites.map(invite => mapper.map(invite, Invite, InviteResponseDTO));
 

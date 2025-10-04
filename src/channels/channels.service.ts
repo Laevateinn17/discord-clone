@@ -40,6 +40,7 @@ import { InviteResponseDTO } from "src/invites/dto/invite-response.dto";
 import { InvitesService } from "src/invites/invites.service";
 import { CreateInviteDto } from "src/invites/dto/create-invite.dto";
 import { UpdateChannelDTO } from "./dto/update-channel.dto";
+import { moveMessagePortToContext } from "worker_threads";
 
 @Injectable()
 export class ChannelsService {
@@ -112,7 +113,13 @@ export class ChannelsService {
       relations: ['parent',],
     });
 
-    const payload = mapper.map(channelWithParent, Channel, ChannelResponseDTO)
+    const payload = mapper.map(channelWithParent, Channel, ChannelResponseDTO);
+
+    const recipientResponse = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({userIds: guild.members.map(m => m.userId)}));
+    if (recipientResponse.status === HttpStatus.OK) {
+      payload.recipients = recipientResponse.data;
+    }
+    
     try {
       this.gatewayMQ.emit(CHANNEL_CREATED, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, channel: payload } } as Payload<{ guildId: string, channel: ChannelResponseDTO }>);
     } catch (error) {
