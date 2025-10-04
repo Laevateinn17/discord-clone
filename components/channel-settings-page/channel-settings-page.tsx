@@ -1,5 +1,5 @@
 
-import { Fragment, ReactNode, useEffect, useState } from "react"
+import { Fragment, ReactNode, useEffect, useMemo, useState } from "react"
 import styles from "./styles.module.css"
 import { useLogoutMutation } from "@/hooks/mutations"
 import styled from "styled-components"
@@ -37,7 +37,6 @@ export default function ChannelSettingsPage({ channelId, guildId, show, onClose 
     const { getGuild } = useGuildsStore();
     const guild = getGuild(guildId);
     const channel = guild?.channels.find(ch => ch.id === channelId);
-
     const sidebarItems: SidebarItem[] = [
         {
             id: "overview",
@@ -51,19 +50,17 @@ export default function ChannelSettingsPage({ channelId, guildId, show, onClose 
         },
         {
             id: "invites",
-            page: <ChannelInvitesSection channelId={channelId} guildId={guildId}/>,
+            page: <ChannelInvitesSection channelId={channelId} guildId={guildId} />,
             element: <p>Invites</p>,
         },
     ];
 
     const [activeItem, setActiveItem] = useState<string>(sidebarItems[0].id);
 
-    function getActivePage(): ReactNode {
-        const item = sidebarItems.find(i => i.id === activeItem);
-        if (item) return item.page ?? <div></div>;
+    useEffect(() => {
+        console.log('rerender');
+    })
 
-        return <div></div>
-    }
 
     return (
         <div className={`${styles["page"]} ${show ? styles["page-active"] : ""}`}>
@@ -106,7 +103,12 @@ export default function ChannelSettingsPage({ channelId, guildId, show, onClose 
             </div>
             <div className={styles["content-region"]}>
                 <div className={styles["content-container"]}>
-                    {getActivePage()}
+                    {sidebarItems.find(si => {
+                        if (si.id === activeItem) {
+                            console.log("sybau")
+                            return si;
+                        }
+                    })!.page}
                 </div>
                 <div className={styles["tools-region"]}>
                     <div className={styles["close-button-container"]}>

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/auth.context";
-import { ReactNode, Suspense, useEffect, useState } from "react";
+import React, { ReactNode, Suspense, useEffect, useState } from "react";
 import SocketProvider, { useSocket } from "@/contexts/socket.context";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import AudioManager from "@/components/audio-manager/audio-manager";
@@ -29,6 +29,13 @@ const soundMap = {
   message: '/sounds/message.mp3',
   call: '/sounds/call.mp3',
 };
+
+if (process.env.NODE_ENV === "development") {
+  const whyDidYouRender = require("@welldone-software/why-did-you-render");
+  whyDidYouRender(React, {
+    trackAllPureComponents: true,
+  });
+}
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
 

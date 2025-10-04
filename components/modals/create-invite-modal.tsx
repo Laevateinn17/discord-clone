@@ -213,6 +213,7 @@ export function CreateInviteModal({ channelId, guildId, onClose }: CreateInviteM
     const [inviteSettings, setInviteSettings] = useState<CreateInviteDto>({ guildId, channelId, maxAge: INVITE_DURATIONS["7 days"] });
 
     useEffect(() => {
+        console.log('creating invite');
         createOrGetInvite(inviteSettings).then(response => {
             if (response) setInvite(response.data);
         })

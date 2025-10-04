@@ -136,6 +136,7 @@ export function ChannelInvitesSection({ channelId, guildId }: ChannelInvitesSect
     const [now, setNow] = useState(new Date());
     const { openModal } = useModal();
     useEffect(() => {
+        console.log('invite section')
         const interval = setInterval(() => {
             setNow(new Date());
         }, 1000);

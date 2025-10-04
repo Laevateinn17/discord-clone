@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { GUILDS_CACHE } from "@/constants/query-keys";
 import { Guild } from "@/interfaces/guild";
+import { useGuildsStore } from "@/app/stores/guilds-store";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -166,7 +167,7 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
     const router = useRouter();
-    const queryClient = useQueryClient();
+    const { addChannel } = useGuildsStore();
 
     function setChannelType(type: ChannelType) {
         setChannel({ ...channel, type })
@@ -181,14 +182,7 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
             setError(response.message as string);
             return;
         }
-        queryClient.setQueryData<Guild>([GUILDS_CACHE, guildId], (old) => {
-            if (!old) return old;
-
-            return {
-                ...old,
-                channels: [...old.channels, response.data!]
-            };
-        })
+        addChannel(guildId, response.data!);
         router.push(`/channels/${guildId}/${response.data!.id}`);
         onClose();
     }
