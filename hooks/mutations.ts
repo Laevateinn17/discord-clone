@@ -11,7 +11,7 @@ import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { MessageStatus } from "@/enums/message-status.enum";
 import { useChannelsStore, useGetChannel } from "@/app/stores/channels-store";
 import { useGuildsStore } from "@/app/stores/guilds-store";
-import { createGuildChannel } from "@/services/channels/channels.service";
+import { createDMChannel, createGuildChannel, deleteChannel } from "@/services/channels/channels.service";
 import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { Guild } from "@/interfaces/guild";
 
@@ -237,20 +237,35 @@ export function useSendMessageGuildMutation(guildId: string) {
 }
 
 export function useCreateGuildChannelMutation() {
-    const queryClient = useQueryClient();
-
     return useMutation({
         mutationFn: (dto: CreateChannelDTO) => createGuildChannel(dto),
         onSuccess: (response, dto) => {
-            if (!response.success) return;
-            queryClient.setQueryData<Guild>([GUILDS_CACHE, dto.guildId], (old) => {
-                if (!old) return old;
+            const { addChannel } = useGuildsStore.getState();
+            if (!response.success) throw new Error(response.message as string);
+            addChannel(dto.guildId, response.data!);
+        }
+    })
+}
 
-                return {
-                    ...old,
-                    channels: [...old.channels, response.data!]
-                };
-            });
+export function useCreateDMChannelMutation() {
+    return useMutation({
+        mutationFn: (recipientId: string) => createDMChannel(recipientId),
+        onSuccess: (response) => {
+            const { updateChannel } = useChannelsStore.getState();
+            if (!response.success) throw new Error(response.message as string);
+            updateChannel(response.data!);
+        }
+    })
+}
+
+export function useDeleteGuildChannelMutation(guildId: string) {
+    return useMutation({
+        mutationFn: (channelId: string) => deleteChannel(channelId),
+        onSuccess: (response, channelId) => {
+            const { deleteChannel: deleteGuildChannel } = useGuildsStore.getState();
+
+            if (!response.success) throw new Error(response.message as string);
+            deleteGuildChannel(guildId, channelId);
         }
     })
 }

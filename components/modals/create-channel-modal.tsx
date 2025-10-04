@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { GUILDS_CACHE } from "@/constants/query-keys";
 import { Guild } from "@/interfaces/guild";
 import { useGuildsStore } from "@/app/stores/guilds-store";
+import { useCreateGuildChannelMutation } from "@/hooks/mutations";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -164,10 +165,9 @@ function RadioButton({ children, isSelected, onClick }: { children: ReactNode, i
 
 export function CreateChannelModal({ guildId, category, onClose }: { guildId: string, category?: Channel, onClose: () => void }) {
     const [channel, setChannel] = useState<CreateChannelDTO>({ type: ChannelType.Text, parentId: category?.id, guildId, isPrivate: false, name: '' });
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | undefined>(undefined);
+    const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
     const router = useRouter();
-    const { addChannel } = useGuildsStore();
+    const {mutateAsync: createGuildChannel , isPending} = useCreateGuildChannelMutation();
 
     function setChannelType(type: ChannelType) {
         setChannel({ ...channel, type })
@@ -175,14 +175,11 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
 
 
     async function handleCreateChannel() {
-        setIsLoading(true);
         const response = await createGuildChannel(channel);
-        setIsLoading(false);
         if (!response.success) {
-            setError(response.message as string);
+            setErrorMessage(response.message as string);
             return;
         }
-        addChannel(guildId, response.data!);
         router.push(`/channels/${guildId}/${response.data!.id}`);
         onClose();
     }
@@ -239,7 +236,7 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
                                 }>
                             </TextInputSecondary>
                         </InputContainer>
-                        {error && <p>{error}</p>}
+                        {errorMessage && <p>{errorMessage}</p>}
                     </ContentSection>
                     <ContentSection>
                         <div className="flex justify-between">
@@ -254,7 +251,7 @@ export function CreateChannelModal({ guildId, category, onClose }: { guildId: st
                 </ContentBody>
                 <ContentFooter>
                     <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
-                    <ButtonPrimary onClick={handleCreateChannel} disabled={channel.name.length === 0 || isLoading} size="lg">Create Channel</ButtonPrimary>
+                    <ButtonPrimary onClick={handleCreateChannel} disabled={channel.name.length === 0 || isPending} size="lg">Create Channel</ButtonPrimary>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

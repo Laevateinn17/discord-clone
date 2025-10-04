@@ -1,26 +1,16 @@
-import Checkbox from "@/components/checkbox/checkbox";
 import Modal from "@/components/modals/modal";
-import ButtonPrimary from "@/components/buttons/button-primary";
-import TextInputSecondary from "@/components/text-input/text-input-secondary";
 import { useModal } from "@/contexts/modal.context";
 import { Channel } from "@/interfaces/channel";
 import { ReactNode, useState } from "react";
-import { FaLock } from "react-icons/fa6";
 import { MdClose } from "react-icons/md";
-import { PiHash } from "react-icons/pi";
 import styled from "styled-components";
 import ButtonSecondary from "@/components/buttons/button-secondary";
-import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { ChannelType } from "@/enums/channel-type.enum";
-import { createGuildChannel, deleteChannel } from "@/services/channels/channels.service";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { GUILDS_CACHE } from "@/constants/query-keys";
-import { Guild } from "@/interfaces/guild";
-import { useGuildDetailQuery } from "@/hooks/queries";
 import { ModalType } from "@/enums/modal-type.enum";
 import ButtonDanger from "../buttons/button-danger";
-import { useGetGuild, useGuildsStore } from "@/app/stores/guilds-store";
+import { useGetGuild } from "@/app/stores/guilds-store";
+import { useDeleteGuildChannelMutation } from "@/hooks/mutations";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -165,23 +155,19 @@ function RadioButton({ children, isSelected, onClick }: { children: ReactNode, i
 }
 
 export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onClose: () => void }) {
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
     const router = useRouter();
     const { closeModal } = useModal();
-    const { removeGuild } = useGuildsStore();
     const guild = useGetGuild(channel.guildId);
+    const { mutateAsync: deleteChannel, isPending } = useDeleteGuildChannelMutation(channel.guildId);
 
     async function handleCreateChannel() {
-        setIsLoading(true);
         const response = await deleteChannel(channel.id);
-        setIsLoading(false);
         if (!response.success) {
             setError(response.message as string);
             return;
         }
 
-        removeGuild(guild!.id);
         const remainingChannels = guild?.channels.filter(ch => ch.id !== channel.id && ch.type === ChannelType.Text) ?? [];
 
         if (remainingChannels.length > 0) {
@@ -210,7 +196,7 @@ export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onC
                 </ContentBody>
                 <ContentFooter>
                     <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
-                    <ButtonDanger disabled={isLoading} onClick={handleCreateChannel} size="lg">Delete Channel</ButtonDanger>
+                    <ButtonDanger disabled={isPending} onClick={handleCreateChannel} size="lg">Delete Channel</ButtonDanger>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

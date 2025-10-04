@@ -15,7 +15,7 @@ import { acceptFriendRequest, declineFriendRequest } from "@/services/relationsh
 import { useQueryClient } from "@tanstack/react-query";
 import { RELATIONSHIPS_CACHE } from "@/constants/query-keys";
 import { useRouter } from "next/navigation";
-import { useAcceptFriendRequestMutation, useDeleteRelationshipMutation } from "@/hooks/mutations";
+import { useAcceptFriendRequestMutation, useCreateDMChannelMutation, useDeleteRelationshipMutation } from "@/hooks/mutations";
 import { useChannelsStore } from "@/app/stores/channels-store";
 import { useCurrentUserStore } from "@/app/stores/current-user-store";
 
@@ -32,14 +32,15 @@ const FilterTypeContainer = styled.div`
 
 function MessageActionButton({ channel, relationship }: { channel?: Channel, relationship: Relationship }) {
     const router = useRouter();
+    const {mutateAsync: createDMChannel} = useCreateDMChannelMutation();
     return (
         <ActionButton
             tooltipText="Message"
             onClick={async () => {
                 if (!channel) {
                     const response =  await createDMChannel(relationship.user.id);
-                    if (response) {
-                        channel = response.data
+                    if (response.success) {
+                        channel = response.data;
                     }
                 }
                 router.push(`/channels/me/${channel!.id}`)

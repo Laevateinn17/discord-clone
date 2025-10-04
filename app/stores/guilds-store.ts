@@ -13,6 +13,7 @@ interface GuildStoreState {
     getGuild: (guildId: string) => Guild | undefined;
     addChannel: (guildId: string, channel: Channel) => void;
     updateChannel: (guildId: string, channelId: string, channel: Channel) => void;
+    deleteChannel: (guildId: string, channelId: string) => void;
     updateChannelLastRead: (guildId: string, channelId: string, messageId: string) => void;
 }
 
@@ -48,6 +49,21 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
         });
     },
     getGuild: (guildId) => get().guilds.get(guildId),
+    deleteChannel: (guildId, channelId) => {
+        set((state) => {
+            const guild = state.guilds.get(guildId);
+            if (!guild) return state;
+
+            const updatedChannels = guild.channels.filter((ch) => ch.id !== channelId);
+
+            const updatedGuild: Guild = { ...guild, channels: updatedChannels };
+
+            const newGuilds = new Map(state.guilds);
+            newGuilds.set(guildId, updatedGuild);
+
+            return { guilds: newGuilds }
+        })
+    },
     updateChannel: (guildId, channelId, channel) => {
         set((state) => {
             const guild = state.guilds.get(guildId);
