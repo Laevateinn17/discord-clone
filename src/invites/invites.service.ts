@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { UpdateInviteDto } from './dto/update-invite.dto';
 import { MoreThan, Repository } from "typeorm";
@@ -10,14 +10,16 @@ import { Result } from "src/interfaces/result.interface";
 import { createMap } from "@automapper/core";
 import { mapper } from "src/mappings/mappers";
 import { InviteResponseDTO } from "./dto/invite-response.dto";
+import { GuildResponseDTO } from "src/guilds/dto/guild-response.dto";
+import { GuildsService } from "src/guilds/guilds.service";
 
 @Injectable()
 export class InvitesService {
   private readonly INVITE_CODE_LENGTH = 8;
 
   constructor(
+    @Inject(forwardRef(() => GuildsService)) private readonly guildsService: GuildsService,
     @InjectRepository(Invite) private readonly invitesRepository: Repository<Invite>
-
   ) { }
   async create(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
     console.log('creating invite');
@@ -59,7 +61,6 @@ export class InvitesService {
 
     const payload: InviteResponseDTO = mapper.map(invite, Invite, InviteResponseDTO);
 
-    console.log('returning invite');
     return {
       status: HttpStatus.OK,
       data: payload,
@@ -68,7 +69,7 @@ export class InvitesService {
   }
 
   async getChannelInvites(channelId: string): Promise<Result<InviteResponseDTO[]>> {
-    const invites = await this.invitesRepository.findBy({channelId, expiresAt: MoreThan(new Date())});
+    const invites = await this.invitesRepository.findBy({ channelId, expiresAt: MoreThan(new Date()) });
 
     const payload: InviteResponseDTO[] = invites.map(invite => mapper.map(invite, Invite, InviteResponseDTO));
 
@@ -100,7 +101,7 @@ export class InvitesService {
   }
 
   async deleteInvite(userId: string, inviteId: string): Promise<Result<null>> {
-    const invite = await this.invitesRepository.findOneBy({id: inviteId});
+    const invite = await this.invitesRepository.findOneBy({ id: inviteId });
 
     if (!invite) {
       return {
@@ -111,7 +112,7 @@ export class InvitesService {
     }
 
     try {
-      await this.invitesRepository.delete({id: invite.id});
+      await this.invitesRepository.delete({ id: invite.id });
     } catch (error) {
       console.error(error);
       return {
@@ -126,6 +127,20 @@ export class InvitesService {
       data: null,
       message: 'Invite deleted successfully'
     };
+  }
+
+  async joinGuild(userId: string, inviteCode: string): Promise<Result<GuildResponseDTO>> {
+    const invite = await this.invitesRepository.findOneBy({ code: inviteCode });
+
+    if (!invite) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Invalid invite code'
+      }
+    }
+
+    return await this.guildsService.join(userId, invite.guildId, invite.channelId);
   }
 
 

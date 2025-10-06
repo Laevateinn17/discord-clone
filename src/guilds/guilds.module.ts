@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { GuildsService } from './guilds.service';
 import { GuildsController } from './guilds.controller';
 import { TypeOrmModule } from "@nestjs/typeorm";
@@ -13,7 +13,8 @@ import { UserChannelState } from "src/channels/entities/user-channel-state.entit
 @Module({
   controllers: [GuildsController],
   providers: [GuildsService],
-  imports: [TypeOrmModule.forFeature([Guild, GuildMember]), StorageModule, ChannelsModule, HttpModule, GrpcClientModule]
+  imports: [TypeOrmModule.forFeature([Guild, GuildMember]), StorageModule, ChannelsModule, HttpModule, GrpcClientModule],
+  exports: [GuildsService]
 })
 
 export class GuildsModule { }

@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateChannelDTO } from './dto/create-channel.dto';
 import { CreateDMChannelDTO } from "./dto/create-dm-channel.dto";
 import { Result } from "src/interfaces/result.interface";
@@ -50,7 +50,7 @@ export class ChannelsService {
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
     @InjectRepository(UserChannelState) private readonly userChannelStateRepository: Repository<UserChannelState>,
-    private readonly invitesService: InvitesService,
+    @Inject(forwardRef(() => InvitesService))private readonly invitesService: InvitesService,
     @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc,
     @Inject('MESSAGES_SERVICE') private messagesGRPCClient: ClientGrpc,
   ) {
@@ -1006,14 +1006,16 @@ export class ChannelsService {
     if (unreadCountRaw === null) {
       if (state) {
         const response = await firstValueFrom(this.messagesService.getUnreadCount({ channelId: channelId, lastMessageId: state.lastReadId }));
-        if (response.status === HttpStatus.OK) unreadCount = response.data;
+        if (response.status === HttpStatus.OK) {
+          unreadCount = response.data;
+          await redisClient.set(key, unreadCount);
+        }
         else unreadCount = 0;
       }
       else {
         unreadCount = 0;
       }
 
-      await redisClient.set(key, unreadCount);
     }
     else {
       unreadCount = Number.parseInt(unreadCountRaw as string);

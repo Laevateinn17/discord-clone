@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ChannelsService } from './channels.service';
 import { GuildChannelsController, DMChannelsController, ChannelsController } from './channels.controller';
 import { HttpModule } from "@nestjs/axios";

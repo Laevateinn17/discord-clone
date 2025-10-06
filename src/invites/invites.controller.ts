@@ -16,4 +16,12 @@ export class InvitesController {
 
     return res.status(status).json(result);
   }
+
+  @Post(":inviteCode")
+  async joinGuild(@Headers('X-User-Id') userId: string, @Param('inviteCode') inviteCode: string, @Res() res: Response) {
+    const result = await this.invitesService.joinGuild(userId, inviteCode);
+    const {status} = result;
+
+    return res.status(status).json(result);
+  }
 }

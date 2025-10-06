@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { CreateGuildDto } from './dto/create-guild.dto';
 import { UpdateGuildDto } from './dto/update-guild.dto';
 import { InjectRepository } from "@nestjs/typeorm"
@@ -29,7 +29,7 @@ export class GuildsService {
   constructor(
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(GuildMember) private readonly guildMembersRepository: Repository<GuildMember>,
-    private readonly channelsService: ChannelsService,
+    @Inject(forwardRef(() => ChannelsService)) private readonly channelsService: ChannelsService,
     private readonly storageService: StorageService,
     @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc
   ) {
@@ -79,11 +79,12 @@ export class GuildsService {
 
       const response = await this.channelsService.create(userId, { guildId: guild.id, name: 'Text Channels', type: ChannelType.Category, isPrivate: false });
       if (response.status !== HttpStatus.CREATED) throw new Error(response.message);
-      await this.channelsService.create(userId, { guildId: guild.id, name: 'general', type: ChannelType.Text, parentId: response.data.id, isPrivate: false });
+      const textChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'general', type: ChannelType.Text, parentId: response.data.id, isPrivate: false });
 
       const voiceCategoryResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'Voice Channels', type: ChannelType.Category, isPrivate: false });
       if (voiceCategoryResponse.status !== HttpStatus.CREATED) throw new Error(voiceCategoryResponse.message);
-      await this.channelsService.create(userId, { guildId: guild.id, name: 'General', type: ChannelType.Voice, parentId: voiceCategoryResponse.data.id, isPrivate: false });
+      const voiceChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'General', type: ChannelType.Voice, parentId: voiceCategoryResponse.data.id, isPrivate: false });
+
 
       await this.guildsRepository.save(guild);
 
@@ -97,9 +98,11 @@ export class GuildsService {
       }
     }
 
+    const response = await this.findOne(userId, guild.id);
+
     return {
       status: HttpStatus.CREATED,
-      data: mapper.map(guild, Guild, GuildResponseDTO),
+      data: response.data,
       message: "Guild created successfully"
     };
 
@@ -192,6 +195,43 @@ export class GuildsService {
       data: data,
       message: 'Guild data retrieved successfully'
     };
+  }
+
+  async join(userId: string, guildId: string, channelId: string): Promise<Result<GuildResponseDTO>> {
+    const guild = await this.guildsRepository.findOne({ where: { id: guildId }, relations: ['members'] });
+
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'This guild does not exist'
+      };
+    }
+
+    if (guild.members.find(m => m.userId === userId)) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'User is already a member of this guild'
+      };
+    }
+    const newMember = new GuildMember();
+    newMember.guildId = guildId;
+    newMember.userId = userId;
+    guild.members.push(newMember);
+
+    try {
+      await this.guildMembersRepository.save(newMember);
+    } catch (error) {
+      console.log(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while saving new member' 
+      };
+    }
+
+    return await this.findOne(userId, guildId);
   }
 
   update(id: number, updateGuildDto: UpdateGuildDto) {
