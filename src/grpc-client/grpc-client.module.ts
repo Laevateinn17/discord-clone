@@ -12,13 +12,27 @@ import { join } from "path";
                     imports: [ConfigModule],
                     inject: [ConfigService],
                     useFactory: (configService: ConfigService) => {
-                        console.log(`${configService.get('USER_SERVICE_HOST')}:${configService.get('USER_SERVICE_GRPC_PORT')}`);
                         return {
                             transport: Transport.GRPC,
                             options: {
                                 package: 'users',
                                 protoPath: join(__dirname, '../proto/users.proto'),
                                 url: `${configService.get('USER_SERVICE_HOST')}:${configService.get('USER_SERVICE_GRPC_PORT')}`,
+                            },
+                        }
+                    }
+                },
+                {
+                    name: 'MESSAGES_SERVICE',
+                    imports: [ConfigModule],
+                    inject: [ConfigService],
+                    useFactory: (configService: ConfigService) => {
+                        return {
+                            transport: Transport.GRPC,
+                            options: {
+                                package: 'messages',
+                                protoPath: join(__dirname, '../proto/messages.proto'),
+                                url: `${configService.get('MESSAGE_SERVICE_HOST')}:${configService.get('MESSAGE_SERVICE_GRPC_PORT')}`,
                             },
                         }
                     }

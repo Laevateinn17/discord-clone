@@ -13,14 +13,12 @@ import { ChannelRecipient } from "./entities/channel-recipient.entity";
 import { mapper } from "src/mappings/mappers";
 import { createMap } from "@automapper/core";
 import { ChannelType } from "./enums/channel-type.enum";
-import { response } from "express";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
-import { UserProfile } from "aws-sdk/clients/opsworks";
 import { ClientGrpc, ClientProxy, ClientProxyFactory, GrpcMethod, Transport } from "@nestjs/microservices";
 import { CHANNEL_CREATED, CHANNEL_DELETED, CHANNEL_UPDATED, CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GATEWAY_QUEUE, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, PRODUCER_CREATED, USER_TYPING_EVENT, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "src/constants/events";
 import { Payload } from "src/interfaces/payload.dto";
 import { UserTypingDTO } from "src/channels/dto/user-typing.dto";
-import { UserReadState } from "./entities/user-read-state.entity";
+import { UserChannelState } from "./entities/user-channel-state.entity";
 import { AcknowledgeMessageDTO } from "./dto/acknowledge-message.dto";
 import { VoiceEventDTO } from "./dto/voice-event.dto";
 import { RedisService } from "src/redis/redis.service";
@@ -30,32 +28,31 @@ import { VoiceStateDTO } from "./dto/voice-state.dto";
 import { VoiceRingState } from "./entities/voice-ring-state";
 import { VOICE_RING_TIMEOUT } from "src/constants/time";
 import { VoiceRingStateDTO } from "./dto/voice-ring-state.dto";
-import { RTCOfferDTO } from "./dto/rtc-offer.dto";
-import { ProducerCreatedDTO } from "./dto/producer-created.dto";
 import { Guild } from "src/guilds/entities/guild.entity";
 import { UserProfilesService } from "src/user-profiles/grpc/user-profiles.service";
-import { Invite } from "src/invites/entities/invite.entity";
-import { channel } from "diagnostics_channel";
 import { InviteResponseDTO } from "src/invites/dto/invite-response.dto";
 import { InvitesService } from "src/invites/invites.service";
 import { CreateInviteDto } from "src/invites/dto/create-invite.dto";
 import { UpdateChannelDTO } from "./dto/update-channel.dto";
-import { moveMessagePortToContext } from "worker_threads";
+import { UserChannelStateResponseDTO } from "./dto/user-channel-state-response.dto";
+import { MessagesService } from "src/messages/messages.service";
+import { MessageCreatedDTO } from "./dto/message-created.dto";
 
 @Injectable()
 export class ChannelsService {
   private gatewayMQ: ClientProxy;
-  private usersServiceGrpc: UserProfilesService;
+  private usersService: UserProfilesService;
+  private messagesService: MessagesService;
 
   constructor(
-    private readonly usersService: HttpService,
     private readonly redisService: RedisService,
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
-    @InjectRepository(UserReadState) private readonly userReadStateRepository: Repository<UserReadState>,
+    @InjectRepository(UserChannelState) private readonly userChannelStateRepository: Repository<UserChannelState>,
     private readonly invitesService: InvitesService,
-    @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc
+    @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc,
+    @Inject('MESSAGES_SERVICE') private messagesGRPCClient: ClientGrpc,
   ) {
     this.gatewayMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
@@ -115,7 +112,7 @@ export class ChannelsService {
 
     const payload = mapper.map(channelWithParent, Channel, ChannelResponseDTO);
 
-    const recipientResponse = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({ userIds: guild.members.map(m => m.userId) }));
+    const recipientResponse = await firstValueFrom(this.usersService.getUserProfiles({ userIds: guild.members.map(m => m.userId) }));
     if (recipientResponse.status === HttpStatus.OK) {
       payload.recipients = recipientResponse.data;
     }
@@ -209,11 +206,10 @@ export class ChannelsService {
     }
 
 
-    let recipientResponse: Result<any>;
+    let recipientResponse: Result<UserProfileResponseDTO[]>;
 
     try {
-      const url = `http://${process.env.USER_SERVICE_HOST}:${process.env.USER_SERVICE_PORT}/user-profiles/${dto.recipientId}`;
-      recipientResponse = (await firstValueFrom(this.usersService.get(url))).data;
+      recipientResponse = await firstValueFrom(this.usersService.getUserProfiles({ userIds: [dto.recipientId] }));
       if (recipientResponse.status !== HttpStatus.OK) {
         return {
           status: HttpStatus.BAD_REQUEST,
@@ -249,7 +245,7 @@ export class ChannelsService {
     }
 
     const responseDTO = mapper.map(channel, Channel, ChannelResponseDTO);
-    responseDTO.recipients = [recipientResponse.data];
+    responseDTO.recipients = [recipientResponse.data[0]];
 
     return {
       status: HttpStatus.CREATED,
@@ -277,11 +273,11 @@ export class ChannelsService {
     }
 
     const dto: ChannelResponseDTO[] = channels.map(channel => mapper.map(channel, Channel, ChannelResponseDTO));
-
     for (const channel of dto) {
       const recipients = await this.channelRecipientRepository.findBy({ channelId: channel.id });
-      const readState = await this.userReadStateRepository.findOneBy({ userId: userId, channelId: channel.id });
-      if (readState) channel.lastReadId = readState.lastMessageId;
+      const userChannelStateResponse = await this.getUserChannelState(userId, channel.id);
+      channel.userChannelState = userChannelStateResponse.data;
+
       channel.recipients = await Promise.all(recipients.filter(re => re.userId !== userId).map(async r => {
         const response = await this.getRecipientDetail(r.userId);
         if (response.status !== HttpStatus.OK) {
@@ -290,6 +286,8 @@ export class ChannelsService {
         return response.data!;
       }));
     }
+
+    console.log(channels);
 
     return {
       status: HttpStatus.OK,
@@ -435,10 +433,9 @@ export class ChannelsService {
   }
 
   private async getRecipientDetail(userId: string): Promise<Result<UserProfileResponseDTO>> {
-    let recipientResponse: AxiosResponse<UserProfileResponseDTO, any>;
+    let recipientResponse: Result<UserProfileResponseDTO[]>;
     try {
-      const url = `http://${process.env.USER_SERVICE_HOST}:${process.env.USER_SERVICE_PORT}/user-profiles/${userId}`;
-      recipientResponse = (await firstValueFrom(this.usersService.get(url))).data;
+      recipientResponse = (await firstValueFrom(this.usersService.getUserProfiles({ userIds: [userId] })));
       if (recipientResponse.status !== HttpStatus.OK) {
         return {
           status: HttpStatus.BAD_REQUEST,
@@ -456,7 +453,7 @@ export class ChannelsService {
 
     return {
       status: HttpStatus.OK,
-      data: recipientResponse.data,
+      data: recipientResponse.data[0],
       message: 'Recipient data retrieved successfully'
     }
   }
@@ -486,17 +483,17 @@ export class ChannelsService {
   }
 
   async acknowledgeMessage(dto: AcknowledgeMessageDTO): Promise<Result<null>> {
-    let userReadState = await this.userReadStateRepository.findOne({ where: { userId: dto.userId, channelId: dto.channelId } })
+    let userReadState = await this.userChannelStateRepository.findOne({ where: { userId: dto.userId, channelId: dto.channelId } })
 
     if (!userReadState) {
-      userReadState = this.userReadStateRepository.create()
+      userReadState = this.userChannelStateRepository.create()
       userReadState.channelId = dto.channelId;
       userReadState.userId = dto.userId;
     }
-    userReadState.lastMessageId = dto.messageId;
+    userReadState.lastReadId = dto.messageId;
 
     try {
-      await this.userReadStateRepository.save(userReadState);
+      await this.userChannelStateRepository.save(userReadState);
     } catch (error) {
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -504,6 +501,10 @@ export class ChannelsService {
         message: 'An error occurred while updating last seen message'
       };
     }
+    const redisClient = await this.redisService.getClient();
+    const key = this.getUserChannelUnreadCountKey(dto.userId, dto.channelId);
+    redisClient.set(key, 0);
+
 
     return {
       status: HttpStatus.NO_CONTENT,
@@ -996,6 +997,66 @@ export class ChannelsService {
     };
   }
 
+  async getUserChannelState(userId: string, channelId: string): Promise<Result<UserChannelStateResponseDTO>> {
+    const state = await this.userChannelStateRepository.findOneBy({ userId: userId, channelId: channelId });
+    const redisClient = await this.redisService.getClient();
+    const key = this.getUserChannelUnreadCountKey(userId, channelId);
+    const unreadCountRaw = await redisClient.get(key);
+    let unreadCount = 0;
+    if (unreadCountRaw === null) {
+      if (state) {
+        const response = await firstValueFrom(this.messagesService.getUnreadCount({ channelId: channelId, lastMessageId: state.lastReadId }));
+        if (response.status === HttpStatus.OK) unreadCount = response.data;
+        else unreadCount = 0;
+      }
+      else {
+        unreadCount = 0;
+      }
+
+      await redisClient.set(key, unreadCount);
+    }
+    else {
+      unreadCount = Number.parseInt(unreadCountRaw as string);
+    }
+
+    try {
+      const dto = state ? mapper.map(state, UserChannelState, UserChannelStateResponseDTO) : new UserChannelStateResponseDTO();
+      dto.unreadCount = unreadCount;
+      return {
+        status: HttpStatus.OK,
+        data: dto,
+        message: 'User channel state retrieved successfully',
+      };
+    } catch (error) {
+      console.log('error', error);
+    }
+
+  }
+
+  async onMessageCreated(dto: MessageCreatedDTO) {
+    const redisClient = await this.redisService.getClient();
+    for (const userId of dto.recipientIds) {
+      const key = this.getUserChannelUnreadCountKey(userId, dto.channelId);
+      const unreadCountRaw = await redisClient.get(key);
+      let unreadCount = 1;
+      if (unreadCountRaw !== null) {
+        unreadCount += Number.parseInt(unreadCountRaw as string);
+      }
+
+      await redisClient.set(key, unreadCount);
+    }
+
+    const channel = await this.channelsRepository.findOneBy({ id: dto.channelId });
+    if (!channel) return;
+
+    channel.lastMessageId = dto.messageId;
+    try {
+      await this.channelsRepository.save(channel);
+    }
+    catch (error) {
+      console.error(error);
+    }
+  }
 
   private getVoiceChannelKey(channelId: string) {
     return `voice:channel:${channelId}`;
@@ -1012,11 +1073,18 @@ export class ChannelsService {
   private getVoiceRingChannelkey(channelId: string) {
     return `ring:channel:${channelId}}`
   }
+
+  private getUserChannelUnreadCountKey(userId: string, channelId: string) {
+    return `unread:${userId}:${channelId}`
+  }
+
   onModuleInit() {
-    this.usersServiceGrpc = this.usersGRPCClient.getService<UserProfilesService>('UserProfilesService');
+    this.usersService = this.usersGRPCClient.getService<UserProfilesService>('UserProfilesService');
+    this.messagesService = this.messagesGRPCClient.getService<MessagesService>('MessagesService');
 
     createMap(mapper, CreateDMChannelDTO, Channel);
     createMap(mapper, CreateChannelDTO, Channel);
     createMap(mapper, Channel, ChannelResponseDTO);
+    createMap(mapper, UserChannelState, UserChannelStateResponseDTO);
   }
 }

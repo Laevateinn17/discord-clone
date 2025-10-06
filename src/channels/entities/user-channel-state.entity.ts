@@ -1,18 +1,20 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import { Channel } from "./channel.entity";
+import { AutoMap } from "@automapper/classes";
 
 @Entity()
-export class UserReadState {
+export class UserChannelState {
     @PrimaryColumn('uuid', {name: 'channel_id'})
     channelId: string
 
     @PrimaryColumn('uuid', {name: 'user_id'})
     userId: string
 
-    @Column({name: 'last_message_id'})
-    lastMessageId: string
+    @AutoMap()
+    @Column({name: 'last_read_id', nullable: true})
+    lastReadId?: string
 
-    @ManyToOne(() => Channel, (channel) => channel.userReadState, {onDelete: 'CASCADE'})
+    @ManyToOne(() => Channel, (channel) => channel.userChannelState, {onDelete: 'CASCADE'})
     @JoinColumn({name: 'channel_id'})
     channel: Channel
 }

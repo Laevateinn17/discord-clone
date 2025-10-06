@@ -8,6 +8,7 @@ import { StorageModule } from "src/storage/storage.module";
 import { ChannelsModule } from "src/channels/channels.module";
 import { HttpModule } from "@nestjs/axios";
 import { GrpcClientModule } from "src/grpc-client/grpc-client.module";
+import { UserChannelState } from "src/channels/entities/user-channel-state.entity";
 
 @Module({
   controllers: [GuildsController],

@@ -89,6 +89,12 @@ message Guild {
   repeated UserProfile members = 8;
 }
 
+message UserChannelState {
+  string lastReadId = 1;
+  int32 unreadCount = 2;
+  int32 mentionCount = 3;
+}
+
 message Channel {
   string id = 1;
   string name = 2;
@@ -99,6 +105,8 @@ message Channel {
   Channel parent = 7;
   Guild guild = 8;
   repeated UserProfile recipients = 9;
-  string lastReadId = 10;
+  string lastMessageId = 10;
   string guildId = 11;
+  UserChannelState userChannelState = 12;
+  
 }

@@ -20,6 +20,7 @@ import { firstValueFrom } from "rxjs";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { UserProfilesService } from "src/user-profiles/grpc/user-profiles.service";
 import { ClientGrpc } from "@nestjs/microservices";
+import { UserChannelState } from "src/channels/entities/user-channel-state.entity";
 
 @Injectable()
 export class GuildsService {
@@ -130,6 +131,10 @@ export class GuildsService {
           guild.channels.map(async (ch) => {
             const channel = mapper.map(ch, Channel, ChannelResponseDTO);
             channel.recipients = data.members;
+
+            const userChannelStateResponse = await this.channelsService.getUserChannelState(userId, channel.id);
+            channel.userChannelState = userChannelStateResponse.data;
+
             return channel;
           }),
         );

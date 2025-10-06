@@ -3,7 +3,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, One
 import { ChannelType } from "../enums/channel-type.enum";
 import { ChannelRecipient } from "./channel-recipient.entity";
 import { AutoMap } from "@automapper/classes";
-import { UserReadState } from "./user-read-state.entity";
+import { UserChannelState } from "./user-channel-state.entity";
 import { Invite } from "src/invites/entities/invite.entity";
 
 @Entity()
@@ -17,7 +17,7 @@ export class Channel {
     name?: string;
 
     @Column({name: 'owner_id'})
-    ownerId: string
+    ownerId: string;
 
     @AutoMap()
     @Column({
@@ -29,15 +29,19 @@ export class Channel {
 
     @AutoMap()
     @Column({ default: false })
-    isPrivate: boolean
+    isPrivate: boolean;
 
     @AutoMap()
     @Column({name: 'parent_id', nullable: true})
-    parentId?: string
+    parentId?: string;
 
     @AutoMap()
     @Column({name: 'guild_id', nullable: true})
-    guildId: string
+    guildId: string;
+
+    @AutoMap()
+    @Column({name: 'last_message_id', nullable: true})
+    lastMessageId?: string;
 
     @AutoMap()
     @CreateDateColumn({ name: 'created_at' })
@@ -62,8 +66,8 @@ export class Channel {
     @OneToMany(() => ChannelRecipient, (recipient) => recipient.channel)
     recipients: ChannelRecipient[]
 
-    @OneToMany(() => UserReadState, (userReadState) => userReadState.channel)
-    userReadState: UserReadState[]
+    @OneToMany(() => UserChannelState, (userChannelState) => userChannelState.channel)
+    userChannelState: UserChannelState[]
 
     @OneToMany(() => Invite, (invite) => invite.channel)
     invites: Invite[]

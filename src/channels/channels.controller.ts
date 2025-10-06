@@ -5,7 +5,7 @@ import { CreateDMChannelDTO } from "./dto/create-dm-channel.dto";
 import { Response } from "express";
 import { GrpcMethod, MessagePattern } from "@nestjs/microservices";
 import { AcknowledgeMessageDTO } from "./dto/acknowledge-message.dto";
-import { CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, PRODUCER_CREATED, VOICE_UPDATE_EVENT } from "src/constants/events";
+import { CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, MESSAGE_CREATED, PRODUCER_CREATED, VOICE_UPDATE_EVENT } from "src/constants/events";
 import { VoiceEventDTO } from "./dto/voice-event.dto";
 import { RedisService } from "src/redis/redis.service";
 import { VoiceEventType } from "./enums/voice-event-type";
@@ -14,6 +14,7 @@ import { ProducerCreatedDTO } from "./dto/producer-created.dto";
 import { GetDMChannelsDTO } from "./dto/get-dm-channels.dto";
 import { CreateInviteDto } from "src/invites/dto/create-invite.dto";
 import { UpdateChannelDTO } from "./dto/update-channel.dto";
+import { MessageCreatedDTO } from "./dto/message-created.dto";
 
 @Controller('guilds/:guildId/channels')
 export class GuildChannelsController {
@@ -196,5 +197,11 @@ export class ChannelsController {
   @GrpcMethod('ChannelsService', 'IsUserChannelParticipant')
   async isUserChannelParticipant({userId, channelId}: {userId: string, channelId: string}) {
     return await this.channelsService.isUserChannelParticipant(userId, channelId)
+  }
+
+  @MessagePattern(MESSAGE_CREATED)
+  async incrementUnreadCount(@Body(new ValidationPipe({transform: true})) dto: MessageCreatedDTO) {
+    console.log('message created')
+    await this.channelsService.onMessageCreated(dto);
   }
 }
