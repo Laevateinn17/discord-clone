@@ -2,8 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, Res, UseInt
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
-import {Response} from 'express'
+import { Response } from 'express'
 import { AnyFilesInterceptor, FileInterceptor } from "@nestjs/platform-express";
+import { GrpcMethod } from "@nestjs/microservices";
+import { GetUnreadCountDTO } from "src/channels/dto/get-unread-count.dto";
+import { AcknowledgeMessageDTO } from "src/channels/dto/acknowledge-message.dto";
 
 @Controller('messages')
 export class MessagesController {
@@ -12,7 +15,7 @@ export class MessagesController {
 
   @Post()
   @UseInterceptors(AnyFilesInterceptor())
-  async create(@Headers('X-User-Id') userId: string, @UploadedFiles() attachments: Array<Express.Multer.File>, @Body(new ValidationPipe({transform: true})) dto: CreateMessageDto, @Res() res: Response) {
+  async create(@Headers('X-User-Id') userId: string, @UploadedFiles() attachments: Array<Express.Multer.File>, @Body(new ValidationPipe({ transform: true })) dto: CreateMessageDto, @Res() res: Response) {
     dto.senderId = userId;
     dto.attachments = attachments;
     const result = await this.messagesService.create(dto);
@@ -49,12 +52,21 @@ export class ChannelMessageController {
     return res.status(status).json(result);
   }
 
-  @Post(':channelId/messages/:messageId/ack') 
+  @Post(':channelId/messages/:messageId/ack')
   async acknowledgeMessage(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Param('messageId') messageId: string, @Res() res: Response) {
-    const result = await this.messagesService.acknowledgeMessage(userId, channelId, messageId);
+    const dto = new AcknowledgeMessageDTO();
+    dto.channelId = channelId;
+    dto.userId = userId;
+    dto.messageId = messageId;
+
+    const result = await this.messagesService.acknowledgeMessage(dto);
     const { status } = result;
 
     return res.status(status).json(result);
+  }
 
+  @GrpcMethod('MessagesService', 'GetUnreadCount')
+  async getUnreadCount(dto: GetUnreadCountDTO) {
+    return await this.messagesService.getUnreadCount(dto);
   }
 }

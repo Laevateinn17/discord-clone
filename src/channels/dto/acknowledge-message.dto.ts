@@ -1,6 +1,6 @@
 
 
-export interface AcknowledgeMessageDTO {
+export class AcknowledgeMessageDTO {
     userId: string;
     channelId: string;
     messageId: string;

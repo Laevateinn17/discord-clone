@@ -16,16 +16,20 @@ import { AxiosResponse } from "axios";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { ClientGrpc, ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
-import { GATEWAY_QUEUE, MESSAGE_RECEIVED } from "src/constants/message-broker";
+import { CHANNEL_QUEUE, GATEWAY_QUEUE, MESSAGE_CREATED, MESSAGE_RECEIVED_EVENT } from "src/constants/events";
 import { channel } from "diagnostics_channel";
 import { Payload } from "src/interfaces/payload.dto";
 import { ChannelResponseDTO } from "src/channels/dto/channel-response.dto";
 import { ChannelsService } from "src/channels/channels.service";
+import { GetUnreadCountDTO } from "src/channels/dto/get-unread-count.dto";
+import { AcknowledgeMessageDTO } from "src/channels/dto/acknowledge-message.dto";
+import { MessageCreatedDTO } from "src/channels/dto/message-created.dto";
 
 @Injectable()
 export class MessagesService {
   private channelsService: ChannelsService;
   private gatewayMQ: ClientProxy;
+  private channelsMQ: ClientProxy;
   constructor(
     @InjectRepository(Message) private readonly messagesRepository: Repository<Message>,
     @InjectRepository(Attachment) private readonly attachmentsRepository: Repository<Attachment>,
@@ -38,6 +42,15 @@ export class MessagesService {
       options: {
         urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
         queue: GATEWAY_QUEUE,
+        queueOptions: { durable: true }
+      }
+    });
+
+    this.channelsMQ  = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
+        queue: CHANNEL_QUEUE,
         queueOptions: { durable: true }
       }
     });
@@ -118,8 +131,15 @@ export class MessagesService {
     if (dto.mentions) data.mentions = message.mentions.map(m => m.userId);
     const userIds = channelResponse.data.recipients.filter(r => r.id !== dto.senderId).map(r => r.id);
     try {
-      this.gatewayMQ.emit(MESSAGE_RECEIVED, { recipients: userIds, data: data } as Payload<MessageResponseDTO>);
-      this.acknowledgeMessage(message.senderId, message.channelId, message.id);
+      this.channelsMQ.emit(MESSAGE_CREATED, { recipientIds: userIds, channelId: message.channelId, messageId: message.id } as MessageCreatedDTO);
+      this.gatewayMQ.emit(MESSAGE_RECEIVED_EVENT, { recipients: userIds, data: data } as Payload<MessageResponseDTO>);
+
+      const ackMessageDTO = new AcknowledgeMessageDTO();
+      ackMessageDTO.userId = message.senderId;
+      ackMessageDTO.channelId = message.channelId;
+      ackMessageDTO.messageId = message.id;
+
+      this.acknowledgeMessage(ackMessageDTO);
     } catch (error) {
       console.error(error);
     }
@@ -144,7 +164,7 @@ export class MessagesService {
       };
     }
 
-    const channelResponse = await firstValueFrom(this.channelsService.isUserChannelParticipant({userId, channelId}));
+    const channelResponse = await firstValueFrom(this.channelsService.isUserChannelParticipant({ userId, channelId }));
 
     if (channelResponse.status !== HttpStatus.OK) {
       return channelResponse;
@@ -180,11 +200,10 @@ export class MessagesService {
     return `This action removes a #${id} message`;
   }
 
-  async acknowledgeMessage(userId: string, channelId: string, messageId: string): Promise<Result<null>> {
-    const message = await this.messagesRepository.findOneBy({ id: messageId });
-    console.log('message ack', message);
+  async acknowledgeMessage(dto: AcknowledgeMessageDTO): Promise<Result<null>> {
+    const message = await this.messagesRepository.findOneBy({ id: dto.messageId });
 
-    if (message.channelId !== channelId) {
+    if (message.channelId !== dto.channelId) {
       return {
         status: HttpStatus.BAD_REQUEST,
         data: null,
@@ -192,9 +211,19 @@ export class MessagesService {
       };
     }
 
-    const result = await firstValueFrom(this.channelsService.acknowledgeMessage({ userId, channelId, messageId }));
+    const result = await firstValueFrom(this.channelsService.acknowledgeMessage(dto));
 
     return result;
+  }
+
+  async getUnreadCount(dto: GetUnreadCountDTO) {
+    const messages = await this.messagesRepository
+      .createQueryBuilder('message')
+      .where('message.channel_id = :channelId', { channelId: dto.channelId })
+      .andWhere('message.created_at > (SELECT created_at FROM message where id = :id)', { id: dto.lastMessageId })
+      .getMany();
+
+    return messages.length;
   }
 
   onModuleInit() {
