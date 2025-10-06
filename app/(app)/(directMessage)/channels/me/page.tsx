@@ -172,8 +172,6 @@ export default function FriendListPage() {
             rels = rels.filter(filterFunction);
         }
 
-        console.log('rsfdsfl', rels)
-
         if (searchText) {
             rels = rels.filter(rel => rel.user.displayName.includes(searchText));
         }

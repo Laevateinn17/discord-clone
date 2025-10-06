@@ -18,6 +18,7 @@ import { VoiceEventType } from "@/enums/voice-event-type";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useSocketStore } from "@/app/stores/socket-store";
 import { useUserPresenceStore } from "@/app/stores/user-presence-store";
+import { useChannelsStore } from "@/app/stores/channels-store";
 
 export interface SocketContextType {
     socket: Socket | undefined;
@@ -40,6 +41,7 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     const { userProfiles, updateStatus } = useUserProfileStore();
     const { handleTypingStart, handleTypingStop } = useUserTypingStore();
     const { updateVoiceState, removeVoiceState, setVoiceStates } = useVoiceStateStore();
+    const { getChannel, updateChannel } = useChannelsStore();
     const { ready } = useMediasoupStore();
 
 
@@ -82,6 +84,11 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
 
     function handleMessageReceived(payload: Message) {
         handleTypingStop(payload.channelId, payload.senderId);
+        const { getChannel, updateChannel } = useChannelsStore.getState();
+        const channel = getChannel(payload.channelId);
+        console.log('message received', channel, payload)
+        if (channel) updateChannel({ ...channel, lastMessageId: payload.id, userChannelState: {...channel.userChannelState, unreadCount: channel.userChannelState.unreadCount + 1} });
+
         queryClient.setQueryData<Message[]>([MESSAGES_CACHE, payload.channelId], (old) => {
             if (!old) {
                 return [];

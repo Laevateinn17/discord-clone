@@ -3,7 +3,7 @@ import { RelationshipType } from "@/enums/relationship-type.enum";
 import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
 import Relationship from "@/interfaces/relationship";
 import { logout } from "@/services/auth/auth.service";
-import { sendMessage } from "@/services/messages/messages.service";
+import { acknowledgeMessage, sendMessage } from "@/services/messages/messages.service";
 import { acceptFriendRequest, declineFriendRequest } from "@/services/relationships/relationships.service";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Message } from "@/interfaces/message";
@@ -90,7 +90,7 @@ export function useSendMessageMutation() {
             };
 
             if (channel) {
-                updateChannel({ ...channel!, lastReadId: message.id });
+                updateChannel({ ...channel, lastMessageId: message.id, userChannelState: { ...channel.userChannelState, lastReadId: message.id } });
             }
 
             queryClient.setQueryData<Message[]>([MESSAGES_CACHE, dto.channelId], (old) => {
@@ -143,7 +143,7 @@ export function useSendMessageMutation() {
             });
 
             if (!channel) return;
-            updateChannel({ ...channel, lastReadId: response.data!.id });
+            updateChannel({ ...channel, lastMessageId: response.data!.id, userChannelState: { ...channel.userChannelState, lastReadId: response.data?.id } });
         }
     })
 }
@@ -266,6 +266,18 @@ export function useDeleteGuildChannelMutation(guildId: string) {
 
             if (!response.success) throw new Error(response.message as string);
             deleteGuildChannel(guildId, channelId);
+        }
+    })
+}
+
+export function useAcknowledgeMessageMutation() {
+    return useMutation({
+        mutationFn: (dto: { channelId: string, messageId: string }) => acknowledgeMessage(dto.channelId, dto.messageId),
+        onMutate: (dto) => {
+            const { getChannel, updateChannel } = useChannelsStore.getState();
+            const channel = getChannel(dto.channelId);
+            if (!channel) return;
+            updateChannel({ ...channel, userChannelState: { ...channel.userChannelState, lastReadId: dto.messageId, unreadCount: 0 } })
         }
     })
 }

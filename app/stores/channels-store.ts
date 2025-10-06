@@ -36,5 +36,5 @@ export const useGetChannel = (channelId: string) => {
 }
 
 export const useGetDMChannels = () => {
-    return useChannelsStore(useShallow(state => Object.values(state.channels).filter(ch => ch.type === ChannelType.DM)));
+    return useChannelsStore(useShallow(state => Array.from(state.channels.values()).filter(ch => ch.type === ChannelType.DM)));
 }

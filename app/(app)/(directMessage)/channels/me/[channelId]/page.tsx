@@ -1,28 +1,23 @@
 "use client"
-import { useChannelsStore, useGetChannel } from "@/app/stores/channels-store";
+import { useChannelsStore, } from "@/app/stores/channels-store";
 import { useCurrentUserStore } from "@/app/stores/current-user-store";
-import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
-import { useIsUserTyping, useTypingUsersFromChannel, useUserTypingStore } from "@/app/stores/user-typing-store";
+import { useTypingUsersFromChannel } from "@/app/stores/user-typing-store";
 import { LoadingIndicator } from "@/components/loading-indicator/loading-indicator";
 import MessageItem from "@/components/message-item/message-item";
-import { MESSAGES_CACHE } from "@/constants/query-keys";
-import { MessageStatus } from "@/enums/message-status.enum";
 import { useMessagesQuery } from "@/hooks/queries";
 import { Channel } from "@/interfaces/channel";
 import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
 import { Message } from "@/interfaces/message";
 import { sendTypingStatus } from "@/services/channels/channels.service";
-import { acknowledgeMessage, sendMessage } from "@/services/messages/messages.service";
 import { dateToShortDate } from "@/utils/date.utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation"
-import { ChangeEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { FaCirclePlus } from "react-icons/fa6";
 import styled from "styled-components";
 import { DMChannelHeader } from "./channel-header";
 import { LINE_HEIGHT, MAX_LINE_COUNT, VERTICAL_PADDING } from "@/constants/user-interface";
-import { useSendMessageMutation } from "@/hooks/mutations";
+import { useAcknowledgeMessageMutation, useSendMessageMutation } from "@/hooks/mutations";
 
 
 const ChatContainer = styled.div`
@@ -208,7 +203,7 @@ export default function Page() {
     const { channelId } = useParams();
     const { getChannel, updateChannel } = useChannelsStore();
     // const [channel, setChannel] = useState<Channel>(getChannel(channelId as string)!);
-    const channel = useGetChannel(channelId as string);
+    const channel = getChannel(channelId as string);
     const { data: messages } = useMessagesQuery(channelId! as string);
     const groupedMessages = messages?.reduce((groups, message) => {
         const key = message.createdAt.toLocaleDateString();
@@ -221,20 +216,12 @@ export default function Page() {
 
         return groups;
     }, {} as Record<string, Message[]>);
-    const [isPageReady, setIsPageReady] = useState(false);
-    const queryClient = useQueryClient();
     const { user } = useCurrentUserStore();
     const { getUserProfile } = useUserProfileStore();
-    const { mutateAsync: sendMessage } = useSendMessageMutation();
-
+    const hasDismounted = useRef(false)
     const typingUsers = useTypingUsersFromChannel(channelId as string);
-
-    async function handleAcknowledgeMessage(channelId: string, messageId: string) {
-        if (!channel) return;
-
-        updateChannel({ ...channel, lastReadId: messageId })
-        acknowledgeMessage(channelId, messageId);
-    }
+    const { mutateAsync: sendMessage } = useSendMessageMutation();
+    const { mutate: acknowledgeMessage } = useAcknowledgeMessageMutation();
 
     useEffect(() => {
         if (!channel) return;
@@ -246,21 +233,21 @@ export default function Page() {
         document.title = `Viscord | @${channel.recipients[0].displayName}`
     }, [channel]);
 
-
     useEffect(() => {
-        if (channel && messages && user) {
-            setIsPageReady(true);
+        return () => {
+            if (process.env.NODE_ENV === 'development' && !hasDismounted.current) {
+                console.log('discmounted')
+                hasDismounted.current = true;
+                return;
+            }
+            const channel = getChannel(channelId as string);
+            if (channel) {
+                const lastMessageId = channel.lastMessageId;
+                if (lastMessageId && lastMessageId !== channel.userChannelState.lastReadId) acknowledgeMessage({ channelId: channel!.id, messageId: lastMessageId });
+
+            }
         }
-
-    }, [channel, messages, user])
-
-    useEffect(() => {
-        if (!isPageReady) return;
-
-        const lastMessageId = messages && messages.length > 0 ? messages.length > 1 ? messages[messages!.length - 1].id : messages[0].id : null;
-        if (lastMessageId && lastMessageId !== channel?.lastReadId) handleAcknowledgeMessage(channel!.id, lastMessageId);
-
-    }, [isPageReady])
+    }, []);
 
     if (!channel) {
         return <p></p>
@@ -281,7 +268,7 @@ export default function Page() {
                                     const isSubsequent = index !== 0 && (message.createdAt.getMinutes() - prev!.createdAt.getMinutes()) < 5 && message.senderId === prev!.senderId;
                                     return (
                                         <Fragment key={message.id}>
-                                            {message.id === channel.lastReadId && index !== messages.length - 1 && <LastReadDivider />}
+                                            {message.id === channel.userChannelState.lastReadId && index !== messages.length - 1 && <LastReadDivider />}
                                             <MessageItem
                                                 message={{ ...message }}
                                                 isSubsequent={isSubsequent}

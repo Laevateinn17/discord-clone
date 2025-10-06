@@ -4,11 +4,9 @@ const nextConfig: NextConfig = {
   compiler: {
     styledComponents: true
   },
-  /* config options here */
-};
-
-module.exports = {
   output: "standalone",
+  // reactStrictMode: false,
+  /* config options here */
 };
 
 export default nextConfig;

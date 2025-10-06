@@ -219,7 +219,7 @@ const UnreadDMWrapper = styled.div`
     }
 `
 
-function UnreadDMChannel({ channel, unreadCount }: { channel: Channel, unreadCount: number }) {
+function UnreadDMChannel({ channel }: { channel: Channel }) {
     const recipient = useGetUserProfile(channel.recipients[0].id);
     const router = useRouter();
     const [isHovering, setIsHovering] = useState(false);
@@ -238,7 +238,7 @@ function UnreadDMChannel({ channel, unreadCount }: { channel: Channel, unreadCou
                 onClick={() => router.push(`/channels/me/${channel.id}`)}
             >
                 <UserAvatar user={recipient} showStatus={false} size="48" />
-                <UnreadMessageCount className="absolute">{unreadCount}</UnreadMessageCount>
+                <UnreadMessageCount className="absolute">{channel.userChannelState.unreadCount}</UnreadMessageCount>
             </UnreadDMWrapper>
             <Tooltip show={isHovering} text={recipient.displayName} position="right" />
         </GuildIconContainer>
@@ -253,25 +253,13 @@ function GuildListSidebar() {
 
     const pathname = usePathname();
     const dmChannels = useGetDMChannels();
-    const messagesPerChannel = useAllDMsMessages(dmChannels);
 
-    const unreadDMs = dmChannels.filter(channel => {
-        const messages = messagesPerChannel.find(m => m.channelId === channel.id)?.messages;
-        if (!messages) return false;
+    const channelId = pathname.startsWith("/channels/me/")
+        ? pathname.split("/").pop()
+        : null;
 
-        const unreadCount = getUnreadCount(channel);
-        return unreadCount > 0;
-    });
+    const unreadDMs = dmChannels.filter(channel => channel.userChannelState.unreadCount > 0 && channel.id !== channelId);
 
-    function getUnreadCount(channel: Channel) {
-        const messages = messagesPerChannel.find(m => m.channelId === channel.id)?.messages;
-        if (!messages) return 0;
-
-        let lastReadIndex = messages.findIndex(m => m.id === channel.lastReadId);
-
-        const unreadCount = messages.length - 1 - lastReadIndex;
-        return unreadCount;
-    }
 
     const dmPaths = [
         "/channels/me",
@@ -282,7 +270,7 @@ function GuildListSidebar() {
     return (
         <div className={styles["guild-list-container"]}>
             <DMButton active={dmPaths.find(path => pathname.startsWith(path)) ? true : false} />
-            {unreadDMs.length > 0 && unreadDMs.map((ch) => <UnreadDMChannel key={ch.id} channel={ch} unreadCount={getUnreadCount(ch)} />)}
+            {unreadDMs.length > 0 && unreadDMs.map((ch) => <UnreadDMChannel key={ch.id} channel={ch} />)}
             <div className={styles["horizontal-divider"]}></div>
             {guilds && Array.from(guilds.values()).map(guild => {
                 const initials = guild.name.split(' ').map(s => s[0]).join(' ');
