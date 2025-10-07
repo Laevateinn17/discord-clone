@@ -19,13 +19,17 @@ import { HttpService } from "@nestjs/axios";
 import { firstValueFrom } from "rxjs";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { UserProfilesService } from "src/user-profiles/grpc/user-profiles.service";
-import { ClientGrpc } from "@nestjs/microservices";
+import { ClientGrpc, ClientProxy, ClientProxyFactory, Transport } from "@nestjs/microservices";
 import { UserChannelState } from "src/channels/entities/user-channel-state.entity";
+import { GATEWAY_QUEUE, GUILD_UPDATE_EVENT } from "src/constants/events";
+import { Payload } from "src/interfaces/payload.dto";
+import { GuildUpdateDTO } from "./dto/guild-update.dto";
+import { GuildUpdateType } from "./enums/guild-update-type.enum";
 
 @Injectable()
 export class GuildsService {
   private usersServiceGrpc: UserProfilesService;
-
+  private gatewayMQ: ClientProxy;
   constructor(
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(GuildMember) private readonly guildMembersRepository: Repository<GuildMember>,
@@ -33,7 +37,14 @@ export class GuildsService {
     private readonly storageService: StorageService,
     @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc
   ) {
-
+    this.gatewayMQ = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
+        queue: GATEWAY_QUEUE,
+        queueOptions: { durable: true }
+      }
+    });
   }
 
   async create(userId: string, dto: CreateGuildDto): Promise<Result<GuildResponseDTO>> {
@@ -127,8 +138,6 @@ export class GuildsService {
       .setParameter('userId', userId)
       .getMany();
 
-    console.log(guilds[0].id, guilds[0].members)
-
     const result = await Promise.all(
       guilds.map(async (guild) => {
         const data = mapper.map(guild, Guild, GuildResponseDTO);
@@ -174,6 +183,7 @@ export class GuildsService {
         message: 'Invalid Guild Id'
       };
     }
+
 
     const guild = await this.guildsRepository
       .createQueryBuilder('guild')
@@ -232,8 +242,13 @@ export class GuildsService {
     newMember.userId = userId;
     guild.members.push(newMember);
 
+    const recipients = guild.members.filter(m => m.userId !== userId).map(m => m.userId);
+
+    const newMemberProfile = await firstValueFrom(this.usersServiceGrpc.getUserProfiles({ userIds: [userId] }));
+
     try {
       await this.guildMembersRepository.save(newMember);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients, data: { type: GuildUpdateType.MEMBER_JOIN, data: newMemberProfile.data[0] } } as Payload<GuildUpdateDTO>)
     } catch (error) {
       console.log(error);
       return {
@@ -244,6 +259,54 @@ export class GuildsService {
     }
 
     return await this.findOne(userId, guildId);
+  }
+
+  async leaveGuild(userId: string, guildId: string): Promise<Result<null>> {
+    const guild = await this.guildsRepository.findOne({ where: { id: guildId }, relations: ['members'] });
+
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Guild does not exist'
+      };
+    }
+
+    if (!guild.members.find(gm => gm.userId === userId)) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'User is not a member of this guild'
+      };
+    }
+
+    if (guild.ownerId === userId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'You cannot leave the guild you owned'
+      };
+    }
+
+    const recipients = guild.members.filter(m => m.userId !== userId).map(m => m.userId);
+
+    try {
+      await this.guildMembersRepository.delete({ userId, guildId });
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients, data: { type: GuildUpdateType.MEMBER_LEAVE, data: userId } } as Payload<GuildUpdateDTO>)
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred'
+      };
+    }
+
+    return {
+      status: HttpStatus.NO_CONTENT,
+      data: null,
+      message: 'Guild left successfully'
+    };
   }
 
   update(id: number, updateGuildDto: UpdateGuildDto) {

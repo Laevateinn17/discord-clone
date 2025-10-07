@@ -41,8 +41,6 @@ export const CREATE_PRODUCER = 'create_producer';
 export const PRODUCER_CREATED = 'producer_created';
 export const CREATE_CONSUMER = 'create_consumer';
 
-export const CHANNEL_CREATED = 'channel_created';
-export const CHANNEL_DELETED = 'channel_deleted';
-export const CHANNEL_UPDATED = 'channel_updated';
-
 export const MESSAGE_CREATED = 'message_created';
+
+export const GUILD_UPDATE_EVENT = 'guild_update';

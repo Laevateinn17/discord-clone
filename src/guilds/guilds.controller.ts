@@ -50,4 +50,12 @@ export class GuildsController {
   remove(@Param('id') id: string) {
     return this.guildsService.remove(+id);
   }
+
+  @Post(':guildId/leave')
+  async leaveGuild(@Headers('X-User-Id') userId: string, @Param('guildId')guildId: string, @Res() res: Response) {
+    const result = await this.guildsService.leaveGuild(userId, guildId);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
 }

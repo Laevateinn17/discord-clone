@@ -15,7 +15,7 @@ import { createMap } from "@automapper/core";
 import { ChannelType } from "./enums/channel-type.enum";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
 import { ClientGrpc, ClientProxy, ClientProxyFactory, GrpcMethod, Transport } from "@nestjs/microservices";
-import { CHANNEL_CREATED, CHANNEL_DELETED, CHANNEL_UPDATED, CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GATEWAY_QUEUE, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, PRODUCER_CREATED, USER_TYPING_EVENT, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "src/constants/events";
+import { CREATE_CONSUMER, CREATE_PRODUCER, CREATE_RTC_ANSWER, CREATE_RTC_OFFER, CREATE_TRANSPORT, GATEWAY_QUEUE, GET_VOICE_RINGS_EVENT, GET_VOICE_STATES_EVENT, GUILD_UPDATE_EVENT, PRODUCER_CREATED, USER_TYPING_EVENT, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "src/constants/events";
 import { Payload } from "src/interfaces/payload.dto";
 import { UserTypingDTO } from "src/channels/dto/user-typing.dto";
 import { UserChannelState } from "./entities/user-channel-state.entity";
@@ -37,6 +37,8 @@ import { UpdateChannelDTO } from "./dto/update-channel.dto";
 import { UserChannelStateResponseDTO } from "./dto/user-channel-state-response.dto";
 import { MessagesService } from "src/messages/messages.service";
 import { MessageCreatedDTO } from "./dto/message-created.dto";
+import { GuildUpdateDTO } from "src/guilds/dto/guild-update.dto";
+import { GuildUpdateType } from "src/guilds/enums/guild-update-type.enum";
 
 @Injectable()
 export class ChannelsService {
@@ -50,7 +52,7 @@ export class ChannelsService {
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
     @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
     @InjectRepository(UserChannelState) private readonly userChannelStateRepository: Repository<UserChannelState>,
-    @Inject(forwardRef(() => InvitesService))private readonly invitesService: InvitesService,
+    @Inject(forwardRef(() => InvitesService)) private readonly invitesService: InvitesService,
     @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc,
     @Inject('MESSAGES_SERVICE') private messagesGRPCClient: ClientGrpc,
   ) {
@@ -118,7 +120,7 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(CHANNEL_CREATED, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, channel: payload } } as Payload<{ guildId: string, channel: ChannelResponseDTO }>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_DELETE, data: { guildId: guild.id, channel: payload } } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
@@ -148,14 +150,15 @@ export class ChannelsService {
       };
     }
 
-    if (channel.ownerId !== userId) {
+    const guild = await this.guildsRepository.findOne({ where: { id: channel.guildId }, relations: ['members'] });
+
+    if (guild.ownerId !== userId) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
-        message: "User is not allowed to delete this channel"
+        message: 'User is not permitted to create a channel for this guild'
       }
     }
-
     try {
       await this.channelsRepository.delete({ id: channel.id });
     } catch (error) {
@@ -168,7 +171,7 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(CHANNEL_DELETED, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { channelId, guildId: channel.guildId } } as Payload<{ guildId: string, channelId: string }>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_UPDATE, data: { channelId } } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
@@ -983,7 +986,7 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(CHANNEL_UPDATED, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { channelId: channel.id, guildId: channel.guildId } } as Payload<{ guildId: string, channelId: string }>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_UPDATE, data: { channelId: channel.id, guildId: channel.guildId } } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
