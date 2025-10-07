@@ -2,51 +2,45 @@ import { UserStatus } from "@/enums/user-status.enum";
 import { UserProfile } from "@/interfaces/user-profile";
 import { create } from "zustand";
 
-type UserProfileMap = Record<string, UserProfile>;
+type UserProfileMap = Map<string, UserProfile>;
 
 
 interface UserProfileStoreState {
     userProfiles: UserProfileMap;
     setUserProfiles: (userProfiles: UserProfileMap) => void;
     updateStatus: (userId: string, status: UserStatus) => void;
-    updatePresence: (userId: string, isOnline: boolean) => void;
     getUserProfile: (userId: string) => UserProfile | undefined;
+    addUserProfile: (userProfile: UserProfile) => void;
 }
 
 export const useUserProfileStore = create<UserProfileStoreState>((set, get) => ({
-    userProfiles: {},
+    userProfiles: new Map(),
     setUserProfiles: (userProfiles: UserProfileMap) => {
         set({ userProfiles })
     },
     updateStatus: (userId, status) => {
-        const currentProfiles = get().userProfiles;
-        if (!currentProfiles[userId]) return;
+        set(state => {
+            const user = state.userProfiles.get(userId);
+            if (!user) return state;
 
-        set({
-            userProfiles: {
-                ...currentProfiles,
-                [userId]: {
-                    ...currentProfiles[userId],
-                    status: status,
-                },
-            },
+            const updatedUser: UserProfile = { ...user, status };
+
+            const newMap = new Map(state.userProfiles);
+            newMap.set(user.id, user);
+
+            return { userProfiles: newMap };
         });
     },
-    updatePresence: (userId, isOnline) => {
-        const currentProfiles = get().userProfiles;
-        if (!currentProfiles[userId]) return;
-
-        set({
-            userProfiles: {
-                ...currentProfiles,
-                [userId]: {
-                    ...currentProfiles[userId],
-                }
-            }
-        })
-    },
     getUserProfile: (userId: string) => {
-        return get().userProfiles[userId];
+        return get().userProfiles.get(userId);
+    },
+    addUserProfile: (userProfile: UserProfile) => {
+        set((state) => {
+            const newMap = new Map(state.userProfiles);
+            newMap.set(userProfile.id, userProfile);
+
+            return { userProfiles: newMap };
+        })
     }
 }));
 

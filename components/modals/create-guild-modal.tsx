@@ -97,14 +97,14 @@ enum ModalContent {
     JoinServer = 2
 }
 
-export function CreateGuildModal({ onClose }: { onClose: () => void}) {
+export function CreateGuildModal({ onClose }: { onClose: () => void }) {
     const [serverName, setServerName] = useState('');
     const [activeContent, setActiveContent] = useState<ModalContent>(ModalContent.Main);
     const [icon, setIcon] = useState<File>()
     const [errorMessage, setErrorMessage] = useState<string>();
 
     const queryClient = useQueryClient();
-    const {addGuild} = useGuildsStore();
+    const { addGuild } = useGuildsStore();
 
     const { mutate: createGuildMutation, isPending } = useMutation({
         mutationFn: (dto: CreateGuildDto) => createGuild(dto),

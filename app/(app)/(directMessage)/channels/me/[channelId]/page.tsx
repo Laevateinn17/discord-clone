@@ -241,6 +241,7 @@ export default function Page() {
                 return;
             }
             const channel = getChannel(channelId as string);
+            console.log(channel?.lastMessageId, channel?.userChannelState.lastReadId)
             if (channel) {
                 const lastMessageId = channel.lastMessageId;
                 if (lastMessageId && lastMessageId !== channel.userChannelState.lastReadId) acknowledgeMessage({ channelId: channel!.id, messageId: lastMessageId });

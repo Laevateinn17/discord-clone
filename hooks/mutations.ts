@@ -14,6 +14,8 @@ import { useGuildsStore } from "@/app/stores/guilds-store";
 import { createDMChannel, createGuildChannel, deleteChannel } from "@/services/channels/channels.service";
 import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { Guild } from "@/interfaces/guild";
+import { joinGuild } from "@/services/invites/invites.service";
+import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 
 
 
@@ -90,7 +92,7 @@ export function useSendMessageMutation() {
             };
 
             if (channel) {
-                updateChannel({ ...channel, lastMessageId: message.id, userChannelState: { ...channel.userChannelState, lastReadId: message.id } });
+                updateChannel({ ...channel, lastMessageId: message.id, userChannelState: { ...channel.userChannelState, lastReadId: message.id, unreadCount: 0 } });
             }
 
             queryClient.setQueryData<Message[]>([MESSAGES_CACHE, dto.channelId], (old) => {
@@ -267,7 +269,7 @@ export function useDeleteGuildChannelMutation(guildId: string) {
             if (!response.success) throw new Error(response.message as string);
             deleteGuildChannel(guildId, channelId);
         }
-    })
+    });
 }
 
 export function useAcknowledgeMessageMutation() {
@@ -279,5 +281,21 @@ export function useAcknowledgeMessageMutation() {
             if (!channel) return;
             updateChannel({ ...channel, userChannelState: { ...channel.userChannelState, lastReadId: dto.messageId, unreadCount: 0 } })
         }
-    })
+    });
+}
+
+export function useJoinGuildMutation() {
+    return useMutation({
+        mutationFn: (inviteCode: string) => joinGuild(inviteCode),
+        onSuccess: (response) => {
+            if (!response.success) return;
+
+            const { addGuild } = useGuildsStore();
+            const { addUserProfile } = useUserProfileStore();
+            const guild = response.data!;
+
+            addGuild(guild);
+            for (const member of guild.members) addUserProfile(member);
+        }
+    });
 }

@@ -239,8 +239,8 @@ export default function MeSidebarContent() {
                                 const isActive = pathname === `/channels/me/${channel.id}`;
                                 const hasNewMessage = channel.userChannelState.unreadCount > 0;
                                 return (
-                                    <DMItemWrapper>
-                                        <DMItemContainer className={`${isActive && 'active'} ${!isActive && hasNewMessage && 'unread'}`} key={channel.id} onClick={() => router.push(`/channels/me/${channel.id}`)}>
+                                    <DMItemWrapper key={channel.id} >
+                                        <DMItemContainer className={`${isActive && 'active'} ${!isActive && hasNewMessage && 'unread'}`} onClick={() => router.push(`/channels/me/${channel.id}`)}>
                                             {!isActive && hasNewMessage &&
                                                 <PillWrapper>
                                                     <Pill className="minimal" />

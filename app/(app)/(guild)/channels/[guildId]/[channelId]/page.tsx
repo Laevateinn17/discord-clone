@@ -279,6 +279,9 @@ export default function Page() {
         return <div>bingbong</div>
     }
 
+    console.log('recipients', channel.recipients.filter( re => isUserOnline(re.id)))
+    console.log('recipients2', channel.recipients.filter( re => !isUserOnline(re.id)))
+
 
     return (
         <div className="h-full flex flex-col">
@@ -299,7 +302,7 @@ export default function Page() {
                                         const isSubsequent = index !== 0 && (message.createdAt.getMinutes() - prev!.createdAt.getMinutes()) < 5 && message.senderId === prev!.senderId;
                                         return (
                                             <Fragment key={message.id}>
-                                                {message.id === channel.lastReadId && index !== messages.length - 1 && <LastReadDivider />}
+                                                {message.id === channel.userChannelState.lastReadId && index !== messages.length - 1 && <LastReadDivider />}
                                                 <MessageItem
                                                     message={{ ...message }}
                                                     isSubsequent={isSubsequent}
@@ -332,7 +335,7 @@ export default function Page() {
                             <>
                                 <h3>Online — {onlineMembers.length}</h3>
                                 {onlineMembers.map(re => {
-                                    const recipient = userProfiles[channel.recipients[0].id];
+                                    const recipient = getUserProfile(re.id)!;
 
                                     return (
                                         <MemberItem key={re.id}>
@@ -353,7 +356,7 @@ export default function Page() {
                             <>
                                 <h3>Offline — {offlineMembers.length}</h3>
                                 {offlineMembers.map(re => {
-                                    const recipient = userProfiles[channel.recipients[0].id];
+                                    const recipient = getUserProfile(re.id)!;
 
                                     return (
                                         <MemberItem key={re.id}>

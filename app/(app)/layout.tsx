@@ -174,14 +174,6 @@ function DMButton({ active }: { active: boolean }) {
     );
 }
 
-
-const useAllDMsMessages = (channels: Channel[]) => {
-    return channels.map(channel => ({
-        channelId: channel.id,
-        messages: useMessagesQuery(channel.id).data
-    }));
-};
-
 const UnreadMessageCount = styled.div`
     background-color: var(--status-danger);
     font-size: 12px;
@@ -321,21 +313,29 @@ function AppInitializer({ children }: { children: ReactNode }) {
 
         socket?.emit(CLIENT_READY_EVENT, (data: ClientReadyResponseDTO) => {
             const currentUser = data.user;
+            const guildsMap: Map<string, Guild> = new Map();
+
+            if (data.guilds) {
+                for (const guild of data.guilds) {
+                    guildsMap.set(guild.id, guild);
+                }
+            }
+
             const userProfiles: UserProfile[] = [currentUser.profile].concat(data.relationships?.map(rel => rel.user) ?? []);
             const dmRecipients = data.dmChannels ? data.dmChannels
                 .map(channel => channel.recipients.find(rep => rep.id !== currentUser.id)!)
                 .filter(Boolean) : [];
 
             const uniqueUsers = new Map<string, UserProfile>();
-            [...userProfiles, ...dmRecipients, currentUser.profile].forEach(user => {
+            [...userProfiles, ...dmRecipients, currentUser.profile, ...Array.from(guildsMap.values()).flatMap(guild => guild.members)].forEach(user => {
                 if (!uniqueUsers.has(user.id)) {
                     uniqueUsers.set(user.id, user);
                 }
             });
 
-            let map: Record<string, UserProfile> = {}
+            let userProfilesMap: Map<string, UserProfile> = new Map();
             for (let [key, value] of uniqueUsers) {
-                map[key] = value;
+                userProfilesMap.set(key, value);
             }
 
             const channelMap: Map<string, Channel> = new Map();
@@ -346,9 +346,12 @@ function AppInitializer({ children }: { children: ReactNode }) {
                 }
             }
 
+            console.log('user profiels', userProfilesMap.size);
             setChannels(channelMap);
-            setUserProfiles(map);
+            setUserProfiles(userProfilesMap);
             setCurrentUser(currentUser);
+            setGuilds(guildsMap);
+
 
             const presenceMap: Map<string, boolean> = new Map();
 
@@ -358,15 +361,6 @@ function AppInitializer({ children }: { children: ReactNode }) {
 
             setPresenceMap(presenceMap);
 
-            const guildsMap: Map<string, Guild> = new Map();
-
-            if (data.guilds) {
-                for (const guild of data.guilds) {
-                    guildsMap.set(guild.id, guild);
-                }
-            }
-
-            setGuilds(guildsMap);
             setIsLoading(false);
         });
 

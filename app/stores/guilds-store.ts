@@ -71,7 +71,7 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
             const newGuilds = new Map(state.guilds);
             newGuilds.set(guildId, updatedGuild);
 
-            return { guilds: newGuilds }
+            return { guilds: newGuilds };
         })
     },
     updateChannel: (guildId, channelId, channel) => {
@@ -90,7 +90,7 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
             const newGuilds = new Map(state.guilds);
             newGuilds.set(guildId, updatedGuild);
 
-            return { guilds: newGuilds }
+            return { guilds: newGuilds };
         })
     },
     updateChannelLastRead: (guildId, channelId, messageId) => {
@@ -109,7 +109,7 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
             const newGuilds = new Map(state.guilds);
             newGuilds.set(guildId, updatedGuild);
 
-            return { guilds: newGuilds }
+            return { guilds: newGuilds };
         })
     }
 }))
