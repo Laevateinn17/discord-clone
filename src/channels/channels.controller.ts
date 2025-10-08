@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, ValidationPipe, Res, HttpStatus, Header } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, ValidationPipe, Res, HttpStatus, Header, Put } from '@nestjs/common';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDTO } from './dto/create-channel.dto';
 import { CreateDMChannelDTO } from "./dto/create-dm-channel.dto";
@@ -15,6 +15,7 @@ import { GetDMChannelsDTO } from "./dto/get-dm-channels.dto";
 import { CreateInviteDto } from "src/invites/dto/create-invite.dto";
 import { UpdateChannelDTO } from "./dto/update-channel.dto";
 import { MessageCreatedDTO } from "./dto/message-created.dto";
+import { UpdateChannelPermissionOverwriteDTO } from "./dto/update-channel-permission.dto";
 
 @Controller('guilds/:guildId/channels')
 export class GuildChannelsController {
@@ -142,9 +143,9 @@ export class ChannelsController {
   }
 
   @Patch(":channelId")
-  async updateChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response, @Body(new ValidationPipe({transform: true})) dto: UpdateChannelDTO) {
+  async updateChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response, @Body(new ValidationPipe({ transform: true })) dto: UpdateChannelDTO) {
     dto.channelId = channelId;
-    
+
     const result = await this.channelsService.update(userId, dto);
     const { status } = result;
 
@@ -152,12 +153,12 @@ export class ChannelsController {
   }
 
   @Post(':channelId/invites')
-  async createOrGetInvite(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response, @Body(new ValidationPipe({transform: true})) dto: CreateInviteDto) {
+  async createOrGetInvite(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response, @Body(new ValidationPipe({ transform: true })) dto: CreateInviteDto) {
     dto.inviterId = userId;
     dto.channelId = channelId;
 
     const result = await this.channelsService.createOrGetInvite(dto);
-    const {status} = result;
+    const { status } = result;
 
     return res.status(status).json(result);
   }
@@ -165,7 +166,19 @@ export class ChannelsController {
   @Get(':channelId/invites')
   async getInvites(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
     const result = await this.channelsService.getChannelInvites(userId, channelId);
-    const {status} = result;
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Put(':channelId/permissions/:targetId')
+  async updateChannelPermissionOverwrite(@Headers('X-User-Id') userId: string, @Res() res: Response, @Param('channelId') channelId: string, @Param('targetId') targetId: string, @Body() dto: UpdateChannelPermissionOverwriteDTO) {
+    dto.channelId = channelId;
+    dto.userId = userId;
+    dto.targetId = targetId;
+
+    const result = await this.channelsService.updateChannelPermissionOverwrite(dto);
+    const { status } = result;
 
     return res.status(status).json(result);
   }
@@ -195,13 +208,12 @@ export class ChannelsController {
   }
 
   @GrpcMethod('ChannelsService', 'IsUserChannelParticipant')
-  async isUserChannelParticipant({userId, channelId}: {userId: string, channelId: string}) {
+  async isUserChannelParticipant({ userId, channelId }: { userId: string, channelId: string }) {
     return await this.channelsService.isUserChannelParticipant(userId, channelId)
   }
 
   @MessagePattern(MESSAGE_CREATED)
-  async incrementUnreadCount(@Body(new ValidationPipe({transform: true})) dto: MessageCreatedDTO) {
-    console.log('message created')
+  async incrementUnreadCount(@Body(new ValidationPipe({ transform: true })) dto: MessageCreatedDTO) {
     await this.channelsService.onMessageCreated(dto);
   }
 }

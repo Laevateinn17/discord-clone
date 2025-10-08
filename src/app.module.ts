@@ -9,13 +9,14 @@ import { ClientsModule, Transport } from "@nestjs/microservices";
 import { join } from "path";
 import { RedisModule } from './redis/redis.module';
 import { InvitesModule } from './invites/invites.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
     isGlobal: true,
     envFilePath: '.env'
   }),
-    DatabaseModule, GuildsModule, ChannelsModule, RedisModule, InvitesModule],
+    DatabaseModule, GuildsModule, ChannelsModule, RedisModule, InvitesModule, RolesModule],
   controllers: [AppController],
   providers: [AppService],
 })

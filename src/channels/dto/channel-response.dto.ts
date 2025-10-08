@@ -2,6 +2,7 @@ import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-respo
 import { AutoMap } from "@automapper/classes";
 import { ChannelType } from "../enums/channel-type.enum";
 import { UserChannelStateResponseDTO } from "./user-channel-state-response.dto";
+import { PermissionOverwriteResponseDTO } from "./permission-overwrite-response.dto";
 
 export class ChannelResponseDTO {
     @AutoMap()
@@ -37,4 +38,6 @@ export class ChannelResponseDTO {
     @AutoMap()
     userChannelState?: UserChannelStateResponseDTO;
 
+    @AutoMap()
+    permissionOverwrites: PermissionOverwriteResponseDTO[];
 }

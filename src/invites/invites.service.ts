@@ -22,7 +22,6 @@ export class InvitesService {
     @InjectRepository(Invite) private readonly invitesRepository: Repository<Invite>
   ) { }
   async create(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
-    console.log('creating invite');
     if (!dto.inviterId || !dto.channelId) {
       return {
         status: HttpStatus.BAD_REQUEST,

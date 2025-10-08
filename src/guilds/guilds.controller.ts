@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ValidationPipe, UploadedFile, UseInterceptors, Headers, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ValidationPipe, UploadedFile, UseInterceptors, Headers, Res, Put } from '@nestjs/common';
 import { GuildsService } from './guilds.service';
 import { CreateGuildDto } from './dto/create-guild.dto';
-import { UpdateGuildDto } from './dto/update-guild.dto';
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import { GrpcMethod } from "@nestjs/microservices";
+import { UpdateRoleDTO } from "./dto/update-role.dto";
+import { AssignRoleDTO } from "./dto/assign-role.dto";
 
 @Controller('guilds')
 export class GuildsController {
@@ -41,21 +42,43 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateGuildDto: UpdateGuildDto) {
-    return this.guildsService.update(+id, updateGuildDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.guildsService.remove(+id);
-  }
-
   @Post(':guildId/leave')
   async leaveGuild(@Headers('X-User-Id') userId: string, @Param('guildId')guildId: string, @Res() res: Response) {
     const result = await this.guildsService.leaveGuild(userId, guildId);
     const { status } = result;
 
     return res.status(status).json(result);
+  }
+
+  @Post('/:guildId/roles')
+  async createRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Res() res: Response) {
+
+    const result = await this.guildsService.createRole(userId, guildId  );
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Patch('/:guildId/roles/:roleId')
+  async updateRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Param('roleId') roleId: string, @Body(new ValidationPipe({transform: true})) dto: UpdateRoleDTO, @Res() res: Response) {
+    dto.guildId = guildId;
+    dto.id = roleId;
+    dto.userId = userId;
+    const result = await this.guildsService.updateRole(dto);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Patch('/:guildId/roles/:roleId/members')
+  async assignRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Param('roleId') roleId: string, @Body(new ValidationPipe({transform: true})) dto: AssignRoleDTO, @Res() res: Response) {
+    dto.guildId = guildId;
+    dto.roleId = roleId;
+    dto.assignerId = userId;
+    const result = await this.guildsService.assignRole(dto);
+    const { status } = result;
+
+    return res.status(status).json(result);
+
   }
 }

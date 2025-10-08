@@ -5,7 +5,7 @@ import { Result } from "src/interfaces/result.interface";
 import { ChannelResponseDTO } from "./dto/channel-response.dto";
 import { HttpService } from "@nestjs/axios";
 import { AxiosResponse } from "axios";
-import { firstValueFrom } from "rxjs";
+import { every, firstValueFrom } from "rxjs";
 import { Not, Repository } from "typeorm";
 import { Channel } from "./entities/channel.entity";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -39,6 +39,16 @@ import { MessagesService } from "src/messages/messages.service";
 import { MessageCreatedDTO } from "./dto/message-created.dto";
 import { GuildUpdateDTO } from "src/guilds/dto/guild-update.dto";
 import { GuildUpdateType } from "src/guilds/enums/guild-update-type.enum";
+import { Role } from "src/roles/entities/role.entity";
+import { RoleResponseDTO } from "./dto/role-response.dto";
+import { PermissionOverwrite } from "./entities/permission-overwrite.entity";
+import { PermissionOverwriteResponseDTO } from "./dto/permission-overwrite-response.dto";
+import { GuildsService } from "src/guilds/guilds.service";
+import { allowPermission, applyChannelOverwrites, denyPermission } from "./helpers/permission.helper";
+import { PermissionOverwriteTargetType } from "./enums/permission-overwrite-target-type.enum";
+import { ALL_PERMISSIONS, Permissions } from "./enums/permissions.enum";
+import { UpdateChannelPermissionOverwriteDTO } from "./dto/update-channel-permission.dto";
+import { GuildMember } from "src/guilds/entities/guild-members.entity";
 
 @Injectable()
 export class ChannelsService {
@@ -50,9 +60,11 @@ export class ChannelsService {
     private readonly redisService: RedisService,
     @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>,
     @InjectRepository(Channel) private readonly channelsRepository: Repository<Channel>,
-    @InjectRepository(ChannelRecipient) private readonly channelRecipientRepository: Repository<ChannelRecipient>,
-    @InjectRepository(UserChannelState) private readonly userChannelStateRepository: Repository<UserChannelState>,
+    @InjectRepository(ChannelRecipient) private readonly channelRecipientsRepository: Repository<ChannelRecipient>,
+    @InjectRepository(UserChannelState) private readonly userChannelStatesRepository: Repository<UserChannelState>,
+    @InjectRepository(PermissionOverwrite) private readonly permissionOverwritesRepository: Repository<PermissionOverwrite>,
     @Inject(forwardRef(() => InvitesService)) private readonly invitesService: InvitesService,
+    @Inject(forwardRef(() => GuildsService)) private readonly guildsService: GuildsService,
     @Inject('USERS_SERVICE') private usersGRPCClient: ClientGrpc,
     @Inject('MESSAGES_SERVICE') private messagesGRPCClient: ClientGrpc,
   ) {
@@ -96,6 +108,10 @@ export class ChannelsService {
     const channelToSave = mapper.map(dto, CreateChannelDTO, Channel);
     channelToSave.ownerId = userId;
 
+    if (dto.type === ChannelType.Category) {
+      channelToSave.isSynced = false;
+    }
+
     try {
       await this.channelsRepository.save(channelToSave);
     } catch (error) {
@@ -120,7 +136,7 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_DELETE, data: { guildId: guild.id, channel: payload } } } as Payload<GuildUpdateDTO>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, type: GuildUpdateType.CHANNEL_DELETE, data: payload } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
@@ -171,7 +187,7 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_UPDATE, data: { channelId } } } as Payload<GuildUpdateDTO>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, type: GuildUpdateType.CHANNEL_UPDATE, data: channelId } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
@@ -235,7 +251,7 @@ export class ChannelsService {
     try {
       await this.channelsRepository.save(channel);
       const recipients: ChannelRecipient[] = [{ channelId: channel.id, userId: userId }, { channelId: channel.id, userId: dto.recipientId }];
-      await this.channelRecipientRepository.save(recipients);
+      await this.channelRecipientsRepository.save(recipients);
 
       channel.recipients = recipients;
     } catch (error) {
@@ -277,7 +293,7 @@ export class ChannelsService {
 
     const dto: ChannelResponseDTO[] = channels.map(channel => mapper.map(channel, Channel, ChannelResponseDTO));
     for (const channel of dto) {
-      const recipients = await this.channelRecipientRepository.findBy({ channelId: channel.id });
+      const recipients = await this.channelRecipientsRepository.findBy({ channelId: channel.id });
       const userChannelStateResponse = await this.getUserChannelState(userId, channel.id);
       channel.userChannelState = userChannelStateResponse.data;
 
@@ -462,7 +478,7 @@ export class ChannelsService {
   }
 
   async broadcastUserTyping(userId: string, channelId: string): Promise<Result<null>> {
-    const recipients = await this.channelRecipientRepository.findBy({ channelId: channelId, userId: Not(userId) });
+    const recipients = await this.channelRecipientsRepository.findBy({ channelId: channelId, userId: Not(userId) });
     const dto: UserTypingDTO = {
       userId: userId,
       channelId: channelId
@@ -486,17 +502,17 @@ export class ChannelsService {
   }
 
   async acknowledgeMessage(dto: AcknowledgeMessageDTO): Promise<Result<null>> {
-    let userReadState = await this.userChannelStateRepository.findOne({ where: { userId: dto.userId, channelId: dto.channelId } })
+    let userReadState = await this.userChannelStatesRepository.findOne({ where: { userId: dto.userId, channelId: dto.channelId } })
 
     if (!userReadState) {
-      userReadState = this.userChannelStateRepository.create()
+      userReadState = this.userChannelStatesRepository.create()
       userReadState.channelId = dto.channelId;
       userReadState.userId = dto.userId;
     }
     userReadState.lastReadId = dto.messageId;
 
     try {
-      await this.userChannelStateRepository.save(userReadState);
+      await this.userChannelStatesRepository.save(userReadState);
     } catch (error) {
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -985,13 +1001,13 @@ export class ChannelsService {
       };
     }
 
+
+    const payload = mapper.map(channel, Channel, ChannelResponseDTO);
     try {
-      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { type: GuildUpdateType.CHANNEL_UPDATE, data: { channelId: channel.id, guildId: channel.guildId } } } as Payload<GuildUpdateDTO>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: channel.recipients.map(r => r.userId).filter(id => id !== userId), data: { guildId: channel.guildId, type: GuildUpdateType.CHANNEL_UPDATE, data: payload } } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
-
-    const payload = mapper.map(channel, Channel, ChannelResponseDTO)
 
     return {
       status: HttpStatus.OK,
@@ -1001,7 +1017,7 @@ export class ChannelsService {
   }
 
   async getUserChannelState(userId: string, channelId: string): Promise<Result<UserChannelStateResponseDTO>> {
-    const state = await this.userChannelStateRepository.findOneBy({ userId: userId, channelId: channelId });
+    const state = await this.userChannelStatesRepository.findOneBy({ userId: userId, channelId: channelId });
     const redisClient = await this.redisService.getClient();
     const key = this.getUserChannelUnreadCountKey(userId, channelId);
     const unreadCountRaw = await redisClient.get(key);
@@ -1063,6 +1079,140 @@ export class ChannelsService {
     }
   }
 
+  async getEffectivePermission(userId: string, guildId: string, channelId: string): Promise<Result<bigint>> {
+    let effective = await this.guildsService.getBasePermission(userId, guildId);
+
+    const channel = await this.channelsRepository.findOne({ where: { id: channelId }, relations: ['permissionOverwrites', 'parent', 'guild', 'parent.permissionOverwrites'] });
+
+    if (!channel || channel.guildId !== guildId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel does not exist'
+      }
+    }
+
+    if (channel.ownerId === userId) {
+      return {
+        status: HttpStatus.OK,
+        data: effective,
+        message: 'Effective permission computed successfully'
+      }
+    }
+
+    const memberRoles = await this.guildsService.getMemberRoles(userId, guildId);
+    effective = applyChannelOverwrites(effective, channel.permissionOverwrites, userId, memberRoles, guildId);
+
+    return {
+      status: HttpStatus.OK,
+      data: effective,
+      message: 'Effective permission computed successfully'
+    };
+  }
+
+  async getMembersWithChannelPermissions(guildId: string, channelId: string, permission: bigint): Promise<GuildMember[]> {
+    const guild = await this.guildsRepository.findOne({
+      where: { id: guildId },
+      relations: [
+        'members',
+        'roles',
+        'members.roles',
+        'channels',
+        'channels.permissionOverwrites'
+      ]
+    });
+    if (!guild) return [];
+
+    const channel = guild.channels.find(ch => ch.id === channelId);
+    if (!channel) return [];
+
+    const overwrites = channel.permissionOverwrites;
+    const everyoneRole = guild.roles.find(role => role.id === guildId);
+
+    return guild.members.filter(member => {
+      if (member.userId === guild.ownerId) return true;
+
+      let effective = everyoneRole ? everyoneRole.permissions : 0n;
+
+      for (const role of member.roles) {
+        effective = allowPermission(effective, role.permissions);
+      }
+
+      effective = applyChannelOverwrites(effective, overwrites, member.userId, member.roles, guildId);
+
+      return (effective & permission) === permission;
+    })
+  }
+
+  async updateChannelPermissionOverwrite(dto: UpdateChannelPermissionOverwriteDTO): Promise<Result<PermissionOverwriteResponseDTO>> {
+    const channel = await this.channelsRepository.findOne({ where: { id: dto.channelId } });
+
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel does not exist'
+      }
+    }
+    const basePermission = await this.guildsService.getBasePermission(dto.userId, channel.guildId);
+
+    if (!(basePermission & Permissions.MANAGE_CHANNELS)) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User does not have permission to manage channels'
+      };
+    }
+
+    let overwrite = await this.permissionOverwritesRepository.findOneBy({ targetId: dto.targetId, channelId: dto.channelId });
+
+    if (!overwrite) {
+      overwrite = new PermissionOverwrite();
+      overwrite.targetId = dto.targetId;
+      overwrite.targetType = dto.targetType;
+      overwrite.channelId = dto.channelId;
+    }
+    overwrite.allow = dto.allow;
+    overwrite.deny = dto.deny;
+
+    try {
+      await this.permissionOverwritesRepository.save(overwrite);
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while updating permission'
+      };
+    }
+
+    const overwrites = await this.permissionOverwritesRepository.findBy({ channelId: dto.channelId });
+    const recipients = (await this.getMembersWithChannelPermissions(channel.guildId, channel.id, Permissions.VIEW_CHANNELS)).filter(m => m.userId === dto.userId).map(m => m.userId);
+
+    const overwritesDTO = overwrites.map(ow => mapper.map(ow, PermissionOverwrite, PermissionOverwriteResponseDTO));
+
+    try {
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
+        recipients: recipients,
+        data: {
+          guildId: channel.guildId,
+          type: GuildUpdateType.CHANNEL_UPDATE,
+          data: {
+            permissionOverwrites: overwritesDTO
+          } as ChannelResponseDTO
+        }
+      } as Payload<GuildUpdateDTO>)
+    } catch (error) {
+      console.error(error)
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: mapper.map(overwrite, PermissionOverwrite, PermissionOverwriteResponseDTO),
+      message: 'Permission updated successfully'
+    };
+  }
+
   private getVoiceChannelKey(channelId: string) {
     return `voice:channel:${channelId}`;
   }
@@ -1091,5 +1241,7 @@ export class ChannelsService {
     createMap(mapper, CreateChannelDTO, Channel);
     createMap(mapper, Channel, ChannelResponseDTO);
     createMap(mapper, UserChannelState, UserChannelStateResponseDTO);
+    createMap(mapper, Role, RoleResponseDTO);
+    createMap(mapper, PermissionOverwrite, PermissionOverwriteResponseDTO);
   }
 }

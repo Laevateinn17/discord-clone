@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, JoinTable, OneToMany, One
 import { GuildMember } from "./guild-members.entity";
 import { AutoMap } from "@automapper/classes";
 import { Invite } from "src/invites/entities/invite.entity";
+import { Role } from "src/roles/entities/role.entity";
 
 @Entity()
 export class Guild {
@@ -24,13 +25,13 @@ export class Guild {
 
     @AutoMap()
     @Column({default: false})
-    isPrivate: boolean
+    isPrivate: boolean;
 
     @CreateDateColumn({ name: 'created_at' })
-    createdAt: Date
+    createdAt: Date;
 
     @UpdateDateColumn({ name: 'updated_at' })
-    updatedAt: Date
+    updatedAt: Date;
 
     @AutoMap()
     @JoinColumn({name: 'owner_id'})
@@ -41,9 +42,13 @@ export class Guild {
 
     @AutoMap()
     @OneToMany(() => Channel, (channel) => channel.guild)
-    channels: Channel[]
+    channels: Channel[];
 
     @AutoMap()
     @OneToMany(() => Invite, (invite) => invite.guild)
     invites: Invite[];
+
+    @AutoMap()
+    @OneToMany(() => Role, (role) => role.guild)
+    roles: Role[];
 }

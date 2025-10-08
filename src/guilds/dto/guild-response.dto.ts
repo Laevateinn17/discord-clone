@@ -1,6 +1,7 @@
 import { AutoMap } from "@automapper/classes";
 import { ChannelResponseDTO } from "src/channels/dto/channel-response.dto";
-import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
+import { RoleResponseDTO } from "src/channels/dto/role-response.dto";
+import { GuildMemberResponseDTO } from "./guild-member-response.dto";
 
 export class GuildResponseDTO {
     @AutoMap()
@@ -24,6 +25,8 @@ export class GuildResponseDTO {
     @AutoMap()
     updatedAt: Date
 
+    members: GuildMemberResponseDTO[];
+
     @AutoMap()
-    members: UserProfileResponseDTO[];
+    roles: RoleResponseDTO[];
 }
