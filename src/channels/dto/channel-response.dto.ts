@@ -1,5 +1,6 @@
 import { AutoMap } from "@automapper/classes";
 import { UserProfileResponseDTO } from "src/user-profiles/dto/user-profile-response.dto";
+import { ChannelType } from "./enums/channel-type.enum";
 
 export class ChannelResponseDTO {
     @AutoMap()
@@ -19,6 +20,9 @@ export class ChannelResponseDTO {
 
     @AutoMap()
     parent?: ChannelResponseDTO;
+
+    @AutoMap()
+    type: ChannelType;
 
     @AutoMap()
     guildId: string;

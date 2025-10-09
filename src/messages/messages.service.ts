@@ -26,6 +26,7 @@ import { AcknowledgeMessageDTO } from "src/channels/dto/acknowledge-message.dto"
 import { MessageCreatedDTO } from "src/channels/dto/message-created.dto";
 import { GuildsService } from "src/guilds/guilds.service";
 import { Permissions } from "src/guilds/enums/permissions.enum";
+import { ChannelType } from "src/channels/dto/enums/channel-type.enum";
 
 @Injectable()
 export class MessagesService {
@@ -87,9 +88,16 @@ export class MessagesService {
       };
     }
 
-    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId: dto.senderId, channelId: dto.channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
+    const channel = channelResponse.data;
+    if (channel.type !== ChannelType.DM && channel.type !== ChannelType.Text) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'Cannot send message in this channel ',
+        data: null
+      };
+    }
 
-    console.log('isAllowed', isAllowed)
+    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId: dto.senderId, channelId: dto.channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
     if (!isAllowed) {
       return {
         status: HttpStatus.FORBIDDEN,
@@ -179,7 +187,6 @@ export class MessagesService {
     }
 
     const channelResponse = await firstValueFrom(this.channelsService.getChannelById({ userId, channelId }));
-
     if (channelResponse.status !== HttpStatus.OK) {
       return {
         status: HttpStatus.FORBIDDEN,
@@ -188,8 +195,16 @@ export class MessagesService {
       };
     }
 
+    const channel = channelResponse.data;
+    if (channel.type !== ChannelType.DM && channel.type !== ChannelType.Text) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'Cannot send message in this channel ',
+        data: null
+      };
+    }
 
-    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId, channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
+    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId, channelId, guildId: channelResponse.data.guildId, permission: Permissions.VIEW_CHANNELS.toString() }))
     if (!isAllowed) {
       return {
         status: HttpStatus.FORBIDDEN,
