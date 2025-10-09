@@ -1,6 +1,6 @@
+import { MessageResponseDTO } from "src/messages/dto/message-response.dto";
 
 export class MessageCreatedDTO {
     channelId: string;
-    messageId: string;
-    recipientIds: string[];
+    message: MessageResponseDTO;
 }

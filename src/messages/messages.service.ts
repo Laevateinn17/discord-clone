@@ -24,10 +24,13 @@ import { ChannelsService } from "src/channels/channels.service";
 import { GetUnreadCountDTO } from "src/channels/dto/get-unread-count.dto";
 import { AcknowledgeMessageDTO } from "src/channels/dto/acknowledge-message.dto";
 import { MessageCreatedDTO } from "src/channels/dto/message-created.dto";
+import { GuildsService } from "src/guilds/guilds.service";
+import { Permissions } from "src/guilds/enums/permissions.enum";
 
 @Injectable()
 export class MessagesService {
   private channelsService: ChannelsService;
+  private guildsService: GuildsService;
   private gatewayMQ: ClientProxy;
   private channelsMQ: ClientProxy;
   constructor(
@@ -35,7 +38,8 @@ export class MessagesService {
     @InjectRepository(Attachment) private readonly attachmentsRepository: Repository<Attachment>,
     @InjectRepository(MessageMention) private readonly messageMentionsRepository: Repository<MessageMention>,
     private readonly storageService: StorageService,
-    @Inject('CHANNELS_SERVICE') private client: ClientGrpc
+    @Inject('CHANNELS_SERVICE') private channelsGRPCClient: ClientGrpc,
+    @Inject('GUILDS_SERVICE') private guildsGRPCClient: ClientGrpc
   ) {
     this.gatewayMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
@@ -46,7 +50,7 @@ export class MessagesService {
       }
     });
 
-    this.channelsMQ  = ClientProxyFactory.create({
+    this.channelsMQ = ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
         urls: [`amqp://${process.env.RMQ_HOST}:${process.env.RMQ_PORT}`],
@@ -73,7 +77,7 @@ export class MessagesService {
       };
     }
 
-    const channelResponse = await firstValueFrom(this.channelsService.getChannelById({ channelId: dto.channelId }));
+    const channelResponse = await firstValueFrom(this.channelsService.getChannelById({ userId: dto.senderId, channelId: dto.channelId }));
 
     if (channelResponse.status !== HttpStatus.OK) {
       return {
@@ -82,6 +86,18 @@ export class MessagesService {
         data: null
       };
     }
+
+    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId: dto.senderId, channelId: dto.channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
+
+    console.log('isAllowed', isAllowed)
+    if (!isAllowed) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'User does not have the permission to send message to this channel',
+        data: null
+      }
+    }
+
     const message = mapper.map(dto, CreateMessageDto, Message);
     try {
       await this.messagesRepository.save(message);
@@ -129,10 +145,8 @@ export class MessagesService {
     const data = mapper.map(message, Message, MessageResponseDTO);
     if (dto.attachments) data.attachments = message.attachments.map(att => mapper.map(att, Attachment, AttachmentResponseDTO));
     if (dto.mentions) data.mentions = message.mentions.map(m => m.userId);
-    const userIds = channelResponse.data.recipients.filter(r => r.id !== dto.senderId).map(r => r.id);
     try {
-      this.channelsMQ.emit(MESSAGE_CREATED, { recipientIds: userIds, channelId: message.channelId, messageId: message.id } as MessageCreatedDTO);
-      this.gatewayMQ.emit(MESSAGE_RECEIVED_EVENT, { recipients: userIds, data: data } as Payload<MessageResponseDTO>);
+      this.channelsMQ.emit(MESSAGE_CREATED, data as MessageResponseDTO);
 
       const ackMessageDTO = new AcknowledgeMessageDTO();
       ackMessageDTO.userId = message.senderId;
@@ -164,10 +178,24 @@ export class MessagesService {
       };
     }
 
-    const channelResponse = await firstValueFrom(this.channelsService.isUserChannelParticipant({ userId, channelId }));
+    const channelResponse = await firstValueFrom(this.channelsService.getChannelById({ userId, channelId }));
 
     if (channelResponse.status !== HttpStatus.OK) {
-      return channelResponse;
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'User is not a recipient of this channel',
+        data: null
+      };
+    }
+
+
+    const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId, channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
+    if (!isAllowed) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'User does not have the permission to view this channel',
+        data: null
+      };
     }
 
     const messages = await this.messagesRepository
@@ -231,6 +259,7 @@ export class MessagesService {
     createMap(mapper, Message, MessageResponseDTO);
     createMap(mapper, Attachment, AttachmentResponseDTO);
 
-    this.channelsService = this.client.getService<ChannelsService>('ChannelsService');
+    this.channelsService = this.channelsGRPCClient.getService<ChannelsService>('ChannelsService');
+    this.guildsService = this.guildsGRPCClient.getService<GuildsService>('GuildsService');
   }
 }

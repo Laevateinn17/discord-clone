@@ -12,18 +12,6 @@ import { AcknowledgeMessageDTO } from "src/channels/dto/acknowledge-message.dto"
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) { }
 
-
-  @Post()
-  @UseInterceptors(AnyFilesInterceptor())
-  async create(@Headers('X-User-Id') userId: string, @UploadedFiles() attachments: Array<Express.Multer.File>, @Body(new ValidationPipe({ transform: true })) dto: CreateMessageDto, @Res() res: Response) {
-    dto.senderId = userId;
-    dto.attachments = attachments;
-    const result = await this.messagesService.create(dto);
-    const { status } = result;
-
-    return res.status(status).json(result);
-  }
-
   @Get()
   findAll() {
     return this.messagesService.findAll();
@@ -45,8 +33,20 @@ export class ChannelMessageController {
   constructor(private readonly messagesService: MessagesService) { }
 
   @Get(':channelId/messages')
-  async getChannelMessages(@Headers('X-User-Id') userId: string, @Param('channelId') id: string, @Res() res: Response) {
-    const result = await this.messagesService.getChannelMessages(userId, id);
+  async getChannelMessages(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
+    const result = await this.messagesService.getChannelMessages(userId, channelId);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Post(':channelId/messages')
+  @UseInterceptors(AnyFilesInterceptor())
+  async create(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @UploadedFiles() attachments: Array<Express.Multer.File>, @Body(new ValidationPipe({ transform: true })) dto: CreateMessageDto, @Res() res: Response) {
+    dto.senderId = userId;
+    dto.channelId = channelId;
+    dto.attachments = attachments;
+    const result = await this.messagesService.create(dto);
     const { status } = result;
 
     return res.status(status).json(result);
