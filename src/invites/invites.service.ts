@@ -12,6 +12,11 @@ import { mapper } from "src/mappings/mappers";
 import { InviteResponseDTO } from "./dto/invite-response.dto";
 import { GuildResponseDTO } from "src/guilds/dto/guild-response.dto";
 import { GuildsService } from "src/guilds/guilds.service";
+import { Guild } from "src/guilds/entities/guild.entity";
+import { Channel } from "src/channels/entities/channel.entity";
+import { ChannelType } from "src/channels/enums/channel-type.enum";
+import { ChannelsService } from "src/channels/channels.service";
+import { Permissions } from "src/guilds/enums/permissions.enum";
 
 @Injectable()
 export class InvitesService {
@@ -19,15 +24,48 @@ export class InvitesService {
 
   constructor(
     @Inject(forwardRef(() => GuildsService)) private readonly guildsService: GuildsService,
-    @InjectRepository(Invite) private readonly invitesRepository: Repository<Invite>
+    @Inject(forwardRef(() => ChannelsService)) private readonly channelsService: ChannelsService,
+    @InjectRepository(Invite) private readonly invitesRepository: Repository<Invite>,
+    @InjectRepository(Guild) private readonly guildsRepository: Repository<Guild>
   ) { }
-  async create(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
-    if (!dto.inviterId || !dto.channelId) {
+  async createOrGet(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
+    if (!dto.inviterId || !dto.guildId) {
       return {
         status: HttpStatus.BAD_REQUEST,
         data: null,
         message: 'Missing some attributes'
-      }
+      };
+    }
+
+    const guild = await this.guildsRepository.findOne({ where: { id: dto.guildId }, relations: ['channels'] });
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Guild not found'
+      };
+    }
+
+    const channel = guild.channels.find(ch => ch.id === dto.channelId);
+
+    if (dto.channelId && (!channel || (channel.type !== ChannelType.Voice && channel.type !== ChannelType.Text))) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Cannot create invite for this channel'
+      };
+    }
+
+    const effectivePermission = await (dto.channelId ?
+      this.channelsService.getEffectivePermission(dto.inviterId, dto.guildId, dto.channelId) :
+      this.guildsService.getBasePermission(dto.inviterId, dto.guildId));
+
+    if ((effectivePermission & Permissions.CREATE_INVITES) !== Permissions.CREATE_INVITES) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User does not have permission to create invite link'
+      };
     }
 
     const existingInvite = await this.findOne(dto.channelId, dto.maxAge);

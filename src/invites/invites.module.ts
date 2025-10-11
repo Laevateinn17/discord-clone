@@ -4,11 +4,13 @@ import { InvitesController } from './invites.controller';
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Invite } from "./entities/invite.entity";
 import { GuildsModule } from "src/guilds/guilds.module";
+import { ChannelsModule } from "src/channels/channels.module";
+import { Guild } from "src/guilds/entities/guild.entity";
 
 @Module({
   controllers: [InvitesController],
   providers: [InvitesService],
-  imports: [TypeOrmModule.forFeature([Invite]), forwardRef(() => GuildsModule)],
+  imports: [TypeOrmModule.forFeature([Invite, Guild]), forwardRef(() => GuildsModule), forwardRef(() => ChannelsModule)],
   exports: [InvitesService]
 })
 export class InvitesModule {}

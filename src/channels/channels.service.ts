@@ -6,7 +6,7 @@ import { ChannelResponseDTO } from "./dto/channel-response.dto";
 import { HttpService } from "@nestjs/axios";
 import { AxiosResponse } from "axios";
 import { every, firstValueFrom } from "rxjs";
-import { Not, Repository } from "typeorm";
+import { In, Not, Repository } from "typeorm";
 import { Channel } from "./entities/channel.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ChannelRecipient } from "./entities/channel-recipient.entity";
@@ -51,6 +51,7 @@ import { UpdateChannelPermissionOverwriteDTO } from "./dto/update-channel-permis
 import { GuildMember } from "src/guilds/entities/guild-members.entity";
 import { stat } from "fs";
 import { MessageResponseDTO } from "src/messages/dto/message-response.dto";
+import { domainToASCII } from "url";
 
 @Injectable()
 export class ChannelsService {
@@ -109,9 +110,11 @@ export class ChannelsService {
 
     const channelToSave = mapper.map(dto, CreateChannelDTO, Channel);
     channelToSave.ownerId = userId;
+    channelToSave.isSynced = true;
 
     if (dto.type === ChannelType.Category) {
       channelToSave.isSynced = false;
+      channelToSave.parentId = null;
     }
 
     try {
@@ -517,7 +520,7 @@ export class ChannelsService {
   }
 
   async acknowledgeMessage(dto: AcknowledgeMessageDTO): Promise<Result<null>> {
-    const channel = await this.channelsRepository.findOneBy({id: dto.channelId});
+    const channel = await this.channelsRepository.findOneBy({ id: dto.channelId });
 
     if (!channel) {
       return {
@@ -536,7 +539,7 @@ export class ChannelsService {
         message: 'User does not have permission to read message'
       };
     }
-    
+
     let userReadState = await this.userChannelStatesRepository.findOne({ where: { userId: dto.userId, channelId: dto.channelId } })
 
     if (!userReadState) {
@@ -895,63 +898,70 @@ export class ChannelsService {
     this.gatewayMQ.emit(VOICE_UPDATE_EVENT, { recipients: recipients, data: payload } as Payload<VoiceEventDTO>)
   }
 
-  async createOrGetInvite(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
-    if (!dto.guildId) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        data: null,
-        message: 'Guild ID cannot be empty'
-      }
-    }
-    const channel = await this.channelsRepository.findOne({ where: { id: dto.channelId }, relations: ['recipients'] });
+  // async createOrGetInvite(dto: CreateInviteDto): Promise<Result<InviteResponseDTO>> {
+  //   if (!dto.guildId) {
+  //     return {
+  //       status: HttpStatus.BAD_REQUEST,
+  //       data: null,
+  //       message: 'Guild ID cannot be empty'
+  //     }
+  //   }
+  //   const channel = await this.channelsRepository.findOne({ where: { id: dto.channelId }, relations: ['recipients'] });
 
-    if (!channel) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        data: null,
-        message: 'Channel not found'
-      }
-    }
+  //   if (!channel) {
+  //     return {
+  //       status: HttpStatus.BAD_REQUEST,
+  //       data: null,
+  //       message: 'Channel not found'
+  //     }
+  //   }
 
-    if (channel.type === ChannelType.DM) {
-      return {
-        status: HttpStatus.NOT_IMPLEMENTED,
-        data: null,
-        message: 'This feature has not been implemented for DM channels'
-      }
-    }
+  //   if (channel.type === ChannelType.DM) {
+  //     return {
+  //       status: HttpStatus.NOT_IMPLEMENTED,
+  //       data: null,
+  //       message: 'This feature has not been implemented for DM channels'
+  //     }
+  //   }
 
-    const guild = await this.guildsRepository.findOneBy({ id: channel.guildId });
-    if (!guild) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        data: null,
-        message: 'Guild not found'
-      }
-    }
+  //   const guild = await this.guildsRepository.findOneBy({ id: channel.guildId });
+  //   if (!guild) {
+  //     return {
+  //       status: HttpStatus.BAD_REQUEST,
+  //       data: null,
+  //       message: 'Guild not found'
+  //     }
+  //   }
+  //   if (dto.channelId && (!channel || (channel.type !== ChannelType.Voice && channel.type !== ChannelType.Text))) {
+  //     return {
+  //       status: HttpStatus.BAD_REQUEST,
+  //       data: null,
+  //       message: 'Channel not found'
+  //     }
+  //   }
 
-    // only guild owner is allowed for now
-    if (guild.ownerId !== dto.inviterId) {
-      return {
-        status: HttpStatus.FORBIDDEN,
-        data: null,
-        message: 'Only guild owner is allowed to perform this action'
-      }
-    }
+  //   const effectivePermission = await this.getEffectivePermission
+  //   if (guild.ownerId !== dto.inviterId) {
+  //     return {
+  //       status: HttpStatus.FORBIDDEN,
+  //       data: null,
+  //       message: 'Only guild owner is allowed to perform this action'
+  //     }
+  //   }
 
-    const recipients = await this.getChannelRecipients(dto.channelId);
-    if (!recipients.includes(dto.inviterId)) {
-      return {
-        status: HttpStatus.FORBIDDEN,
-        data: null,
-        message: 'User is not channel recipient'
-      }
-    }
+  //   const recipients = await this.getChannelRecipients(dto.channelId);
+  //   if (!recipients.includes(dto.inviterId)) {
+  //     return {
+  //       status: HttpStatus.FORBIDDEN,
+  //       data: null,
+  //       message: 'User is not channel recipient'
+  //     }
+  //   }
 
-    const inviteResponse = await this.invitesService.create(dto);
+  //   const inviteResponse = await this.invitesService.create(dto);
 
-    return inviteResponse;
-  }
+  //   return inviteResponse;
+  // }
 
   async getChannelInvites(userId: string, channelId: string): Promise<Result<InviteResponseDTO[]>> {
     const channel = await this.channelsRepository.findOne({ where: { id: channelId } });
@@ -1195,12 +1205,11 @@ export class ChannelsService {
         data: null,
         message: 'Cannot set permission for this channel'
       }
-
     }
 
-    const basePermission = await this.guildsService.getBasePermission(dto.userId, channel.guildId);
+    const effectivePermission = await this.getEffectivePermission(dto.userId, channel.id, channel.guildId);
 
-    if (!((basePermission & Permissions.MANAGE_CHANNELS) === Permissions.MANAGE_CHANNELS)) {
+    if (!((effectivePermission & Permissions.MANAGE_CHANNELS) === Permissions.MANAGE_CHANNELS)) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
@@ -1229,8 +1238,9 @@ export class ChannelsService {
       }
     }
 
-    let overwrite = await this.permissionOverwritesRepository.findOneBy({ targetId: dto.targetId, channelId: dto.channelId });
+    channel.isSynced = false;
 
+    let overwrite = await this.permissionOverwritesRepository.findOneBy({ targetId: dto.targetId, channelId: dto.channelId });
     if (!overwrite) {
       overwrite = new PermissionOverwrite();
       overwrite.targetId = dto.targetId;
@@ -1241,6 +1251,7 @@ export class ChannelsService {
     overwrite.deny = dto.deny;
 
     try {
+      await this.channelsRepository.save(channel);
       await this.permissionOverwritesRepository.save(overwrite);
     } catch (error) {
       console.error(error);
@@ -1252,9 +1263,10 @@ export class ChannelsService {
     }
 
     const overwrites = await this.permissionOverwritesRepository.findBy({ channelId: dto.channelId });
-    const recipients = (await this.getMembersWithChannelPermissions(channel.guildId, channel.id, Permissions.VIEW_CHANNELS)).filter(m => m.userId === dto.userId).map(m => m.userId);
+    const recipients = guild.members.filter(m => m.userId !== dto.userId).map(r => r.userId);
 
-    const overwritesDTO = overwrites.map(ow => mapper.map(ow, PermissionOverwrite, PermissionOverwriteResponseDTO));
+    const channelDTO = mapper.map(channel, Channel, ChannelResponseDTO);
+    channelDTO.permissionOverwrites = overwrites.map(ow => mapper.map(ow, PermissionOverwrite, PermissionOverwriteResponseDTO));
 
     try {
       this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
@@ -1262,9 +1274,7 @@ export class ChannelsService {
         data: {
           guildId: channel.guildId,
           type: GuildUpdateType.CHANNEL_UPDATE,
-          data: {
-            permissionOverwrites: overwritesDTO
-          } as ChannelResponseDTO
+          data: channelDTO
         }
       } as Payload<GuildUpdateDTO>)
     } catch (error) {
@@ -1277,6 +1287,103 @@ export class ChannelsService {
       message: 'Permission updated successfully'
     };
   }
+
+  async syncChannel(userId: string, channelId: string): Promise<Result<ChannelResponseDTO>> {
+    const channel = await this.channelsRepository.findOne({ where: { id: channelId } });
+
+    if (!channel) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel does not exist'
+      }
+    }
+
+    if (!channel.guildId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Cannot set permission for this channel'
+      }
+    }
+
+    if (channel.type === ChannelType.Category) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Cannot sync category'
+      };
+    }
+
+    if (!channel.parentId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Channel does not have parent to sync with'
+      };
+    }
+
+    const effectivePermission = await this.getEffectivePermission(userId, channel.id, channel.guildId);
+
+    if (!((effectivePermission & Permissions.MANAGE_CHANNELS) === Permissions.MANAGE_CHANNELS)) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User does not have permission to manage channels'
+      };
+    }
+
+    channel.isSynced = true;
+    const overwrites = await this.permissionOverwritesRepository.findBy({ channelId: channel.id });
+    delete channel.permissionOverwrites;
+
+    try {
+      const overwriteIds = overwrites.map(ow => ow.id);
+      await this.permissionOverwritesRepository.delete({ id: In(overwriteIds) });
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while updating permissions'
+      };
+    }
+
+    try {
+      await this.channelsRepository.save(channel);
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while updating permission'
+      };
+    }
+
+    const channelDTO = mapper.map(channel, Channel, ChannelResponseDTO);
+
+    const guild = await this.guildsRepository.findOne({ where: { id: channel.guildId }, relations: ['roles', 'members'] });
+    const recipients = guild.members.map(m => m.userId).filter(id => id !== userId);
+    try {
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
+        recipients: recipients,
+        data: {
+          guildId: channel.guildId,
+          type: GuildUpdateType.CHANNEL_UPDATE,
+          data: channelDTO
+        }
+      } as Payload<GuildUpdateDTO>)
+    } catch (error) {
+      console.error(error)
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: channelDTO,
+      message: 'Permission updated successfully'
+    };
+  }
+
 
   private getVoiceChannelKey(channelId: string) {
     return `voice:channel:${channelId}`;

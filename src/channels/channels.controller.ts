@@ -17,11 +17,13 @@ import { UpdateChannelDTO } from "./dto/update-channel.dto";
 import { MessageCreatedDTO } from "./dto/message-created.dto";
 import { UpdateChannelPermissionOverwriteDTO } from "./dto/update-channel-permission.dto";
 import { MessageResponseDTO } from "src/messages/dto/message-response.dto";
+import { InvitesService } from "src/invites/invites.service";
 
 @Controller('guilds/:guildId/channels')
 export class GuildChannelsController {
   constructor(
-    private readonly channelsService: ChannelsService) { }
+    private readonly channelsService: ChannelsService,
+  ) { }
 
   @Post()
   async create(@Headers('X-User-Id') userId: string, @Body() createChannelDto: CreateChannelDTO, @Res() res: Response, @Param('guildId') guildId: string) {
@@ -90,7 +92,9 @@ export class DMChannelsController {
 
 @Controller('channels')
 export class ChannelsController {
-  constructor(private readonly channelsService: ChannelsService) { }
+  constructor(private readonly channelsService: ChannelsService,
+    private readonly invitesService: InvitesService
+  ) { }
 
   @Get(':channelId')
   async getDMChannel(@Headers('X-User-Id') userId: string, @Param('channelId') channelId: string, @Res() res: Response) {
@@ -158,7 +162,7 @@ export class ChannelsController {
     dto.inviterId = userId;
     dto.channelId = channelId;
 
-    const result = await this.channelsService.createOrGetInvite(dto);
+    const result = await this.invitesService.createOrGet(dto);
     const { status } = result;
 
     return res.status(status).json(result);
@@ -204,7 +208,7 @@ export class ChannelsController {
   }
 
   @GrpcMethod('ChannelsService', 'GetChannelById')
-  async getChannelById({ userId, channelId }: {userId: string, channelId: string }) {
+  async getChannelById({ userId, channelId }: { userId: string, channelId: string }) {
     return await this.channelsService.getChannelById(userId, channelId);
   }
 

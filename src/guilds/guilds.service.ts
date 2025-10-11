@@ -117,13 +117,13 @@ export class GuildsService {
 
       await this.rolesRepository.save(everyoneRole);
 
-      const response = await this.channelsService.create(userId, { guildId: guild.id, name: 'Text Channels', type: ChannelType.Category, isPrivate: false });
+      const response = await this.channelsService.create(userId, { guildId: guild.id, name: 'Text Channels', type: ChannelType.Category });
       if (response.status !== HttpStatus.CREATED) throw new Error(response.message);
-      const textChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'general', type: ChannelType.Text, parentId: response.data.id, isPrivate: false });
+      const textChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'general', type: ChannelType.Text, parentId: response.data.id });
 
-      const voiceCategoryResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'Voice Channels', type: ChannelType.Category, isPrivate: false });
+      const voiceCategoryResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'Voice Channels', type: ChannelType.Category });
       if (voiceCategoryResponse.status !== HttpStatus.CREATED) throw new Error(voiceCategoryResponse.message);
-      const voiceChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'General', type: ChannelType.Voice, parentId: voiceCategoryResponse.data.id, isPrivate: false });
+      const voiceChannelResponse = await this.channelsService.create(userId, { guildId: guild.id, name: 'General', type: ChannelType.Voice, parentId: voiceCategoryResponse.data.id });
 
 
       await this.guildsRepository.save(guild);
@@ -540,7 +540,6 @@ export class GuildsService {
         updatedMembers.push(member);
       }
     }
-    console.log(invalidUsers)
 
     if (invalidUsers.length > 0) {
       return {
@@ -551,7 +550,6 @@ export class GuildsService {
     }
 
 
-    console.log('updated members', updatedMembers);
     try {
       await this.guildMembersRepository.save(updatedMembers)
     } catch (error) {

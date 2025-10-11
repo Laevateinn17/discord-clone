@@ -83,6 +83,8 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
+  @Patch('')
+
   @GrpcMethod('GuildsService', 'CheckPermission')
   async checkPermission(dto: CheckPermissionDTO): Promise<CheckPermissionResponseDTO> {
     return { isAllowed: await this.guildsService.checkPermission(dto) };

@@ -21,6 +21,9 @@ export class ChannelResponseDTO {
     updatedAt: Date;
 
     @AutoMap()
+    isSynced: boolean;
+
+    @AutoMap()
     parent?: ChannelResponseDTO;
 
     @AutoMap()

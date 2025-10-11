@@ -12,8 +12,5 @@ export class CreateChannelDTO {
     type: ChannelType;
 
     @AutoMap()
-    isPrivate: boolean;
-
-    @AutoMap()
     parentId?: string;
 }
