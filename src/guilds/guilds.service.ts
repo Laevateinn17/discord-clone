@@ -36,6 +36,7 @@ import { CheckPermissionDTO } from "./dto/check-permission.dto";
 import { deadlineToString } from "@grpc/grpc-js/build/src/deadline";
 import { PermissionOverwrite } from "src/channels/entities/permission-overwrite.entity";
 import { PermissionOverwriteResponseDTO } from "src/channels/dto/permission-overwrite-response.dto";
+import { UpdateMemberDTO } from "./dto/update-member.dto";
 
 @Injectable()
 export class GuildsService {
@@ -502,11 +503,12 @@ export class GuildsService {
       };
     }
 
-    if (guild.ownerId !== dto.assignerId) {
+    const basePermission = await this.getBasePermission(dto.assignerId, dto.guildId);
+    if ((basePermission & Permissions.MANAGE_ROLES) !== Permissions.MANAGE_ROLES) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
-        message: 'Only owner is allowed to perform this action'
+        message: 'User does not have permission to manage roles'
       };
     }
 
@@ -666,6 +668,85 @@ export class GuildsService {
     }
 
     return false;
+  }
+
+  async updateMember(dto: UpdateMemberDTO) {
+    if (!dto.userId || !dto.guildId || !dto.memberId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Invalid DTO'
+      };
+    }
+
+    const guild = await this.guildsRepository.findOne({where: {id: dto.guildId}, relations: ['members', 'roles']});
+
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Guild not found'
+      };
+    }
+
+    const member = guild.members.find(m => m.userId === dto.memberId);
+
+    if (!member) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'This user is not a member of this guild'
+      };
+    }
+
+    const basePermission = await this.getBasePermission(dto.userId, dto.guildId);
+
+    if ((basePermission & Permissions.MANAGE_ROLES) !== Permissions.MANAGE_ROLES) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'User does not have permission to manage roles'
+      };
+    }
+
+    member.roles = guild.roles.filter(role => dto.roleIds.find(id => id === role.id));
+
+    try{
+      await this.guildMembersRepository.save(member);
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while updating member'
+      };
+    }
+
+    const recipients = guild.members.filter(m => m.userId !== dto.userId).map(r => r.userId);
+    const memberDTO: GuildMemberResponseDTO = {
+      userId: member.userId,
+      profile: null,
+      roles: member.roles.map(role => role.id)
+    }
+
+    try {
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
+        recipients,
+        data: {
+          type: GuildUpdateType.MEMBERS_UPDATE,
+          guildId: dto.guildId,
+          data: [memberDTO]
+        }
+      } as Payload<GuildUpdateDTO>);
+    } catch (error) {
+      console.error(error);
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: memberDTO,
+      message: 'Member updated successfully'
+    };
   }
 
 

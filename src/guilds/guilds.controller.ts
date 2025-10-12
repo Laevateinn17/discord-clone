@@ -8,6 +8,7 @@ import { UpdateRoleDTO } from "./dto/update-role.dto";
 import { AssignRoleDTO } from "./dto/assign-role.dto";
 import { CheckPermissionDTO } from "./dto/check-permission.dto";
 import { CheckPermissionResponseDTO } from "./dto/check-permission-response.dto";
+import { UpdateMemberDTO } from "./dto/update-member.dto";
 
 @Controller('guilds')
 export class GuildsController {
@@ -52,7 +53,7 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
-  @Post('/:guildId/roles')
+  @Post(':guildId/roles')
   async createRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Res() res: Response) {
 
     const result = await this.guildsService.createRole(userId, guildId);
@@ -61,7 +62,7 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
-  @Patch('/:guildId/roles/:roleId')
+  @Patch(':guildId/roles/:roleId')
   async updateRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Param('roleId') roleId: string, @Body(new ValidationPipe({ transform: true })) dto: UpdateRoleDTO, @Res() res: Response) {
     dto.guildId = guildId;
     dto.id = roleId;
@@ -72,7 +73,7 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
-  @Patch('/:guildId/roles/:roleId/members')
+  @Patch(':guildId/roles/:roleId/members')
   async assignRole(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Param('roleId') roleId: string, @Body(new ValidationPipe({ transform: true })) dto: AssignRoleDTO, @Res() res: Response) {
     dto.guildId = guildId;
     dto.roleId = roleId;
@@ -83,7 +84,18 @@ export class GuildsController {
     return res.status(status).json(result);
   }
 
-  @Patch('')
+  @Patch(':guildId/members/:memberId')
+  async updateMember(@Headers('X-User-Id') userId: string, @Param('guildId') guildId: string, @Param('memberId') memberId: string, @Body(new ValidationPipe({ transform: true })) dto: UpdateMemberDTO, @Res() res: Response) {
+    dto.userId = userId;
+    dto.memberId = memberId;
+    dto.guildId = guildId;
+
+    const result = await this.guildsService.updateMember(dto);
+    const { status } = result;
+
+    return res.status(status).json(result);
+
+  }
 
   @GrpcMethod('GuildsService', 'CheckPermission')
   async checkPermission(dto: CheckPermissionDTO): Promise<CheckPermissionResponseDTO> {
