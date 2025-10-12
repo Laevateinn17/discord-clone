@@ -17,5 +17,8 @@ export class RoleResponseDTO {
     isHoisted: boolean;
 
     @AutoMap()
+    color: number;
+
+    @AutoMap()
     guildId: string;
 }

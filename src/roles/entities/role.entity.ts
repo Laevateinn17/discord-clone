@@ -38,6 +38,10 @@ export class Role {
     isHoisted: boolean;
 
     @AutoMap()
+    @Column({nullable: true})
+    color?: number
+
+    @AutoMap()
     @Column({ name: 'guild_id' })
     guildId: string;
 

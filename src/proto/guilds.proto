@@ -98,6 +98,7 @@ message Role {
   int32 position = 4;
   bool isHoisted = 5;
   string guildId = 6;
+  int32 color = 7;
 }
 
 message GuildMember {

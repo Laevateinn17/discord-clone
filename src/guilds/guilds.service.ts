@@ -452,8 +452,9 @@ export class GuildsService {
 
     if (role.id !== guild.id) {
       if (dto.name) role.name = dto.name;
-      if (dto.isHoisted !== false) role.isHoisted = dto.isHoisted;
+      if (dto.isHoisted !== null && dto.isHoisted !== undefined) role.isHoisted = dto.isHoisted;
       if (dto.position) role.position = dto.position;
+      if (dto.color) role.color = dto.color;
     }
     if (dto.permissions) role.permissions = dto.permissions;
 
