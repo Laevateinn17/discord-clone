@@ -86,6 +86,7 @@ const MemberContainer = styled.div`
     padding: 8px 6px;
     height: 40px;
     align-items: center;
+    cursor: pointer;
     &:hover {
         background-color: var(--background-modifier-hover);
     }
@@ -142,6 +143,15 @@ export function AddRoleMembersModal({ roleId, guildId, onClose }: AddRoleMembers
         onClose();
     }
 
+    function toggleMember(userId: string) {
+        if (selectedMembers.includes(userId)) {
+            setSelectedMembers(selectedMembers.filter(id => id !== userId));
+        }
+        else {
+            setSelectedMembers([...selectedMembers, userId]);
+        }
+    }
+
     return (
         <Modal onClose={onClose}>
             <ContentContainer>
@@ -173,7 +183,7 @@ export function AddRoleMembersModal({ roleId, guildId, onClose }: AddRoleMembers
                         {filteredMembers.map(member => {
                             const profile = getUserProfile(member.userId);
                             return (
-                                <MemberContainer key={member.userId}>
+                                <MemberContainer key={member.userId} onClick={() => toggleMember(member.userId)}>
                                     <Checkbox
                                         value={selectedMembers.includes(member.userId)}
                                         onChange={(v) => {

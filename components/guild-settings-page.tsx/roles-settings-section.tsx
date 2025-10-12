@@ -18,7 +18,8 @@ import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import UserAvatar from "../user-avatar/user-avatar";
 import { useModal } from "@/contexts/modal.context";
 import { ModalType } from "@/enums/modal-type.enum";
-import { useCreateRole } from "@/hooks/mutations";
+import { useCreateRole, useUpdateMember } from "@/hooks/mutations";
+import { GuildMember } from "@/interfaces/guild-member";
 
 
 const Header = styled.h2`
@@ -530,13 +531,19 @@ function RolePermissionsTab({ role, onUpdateRole }: { role: Role, onUpdateRole: 
 function RoleMembersTab({ role, guild }: { role: Role, guild: Guild }) {
     const [searchText, setSearchText] = useState('');
     const { getUserProfile } = useUserProfileStore();
-    const { } = useGuildsStore();
     const { openModal } = useModal();
+    const { mutateAsync: updateMember } = useUpdateMember();
     const filteredRoleMembers = guild.members.filter(m => {
         const profile = getUserProfile(m.userId);
 
         return (role.id === guild.id ? true : m.roles.find(roleId => roleId === role.id)) && (profile?.username.includes(searchText) || profile?.displayName.includes(searchText));
     })
+
+    async function handleRemoveRole(memberId: string) {
+        const member: GuildMember = guild.members.find(member => member.userId === memberId)!;
+        await updateMember({ guildId: guild.id, memberId, roleIds: member.roles.filter(roleId => roleId !== role.id) })
+    }
+
     return (
         <div className="mt-[16px]">
             <div className="flex gap-[8px] mb-[16px]">
@@ -562,7 +569,7 @@ function RoleMembersTab({ role, guild }: { role: Role, guild: Guild }) {
                             <RoleMemberDisplayName>{profile?.displayName}</RoleMemberDisplayName>
                             <RoleMemberUsername>{profile?.username}</RoleMemberUsername>
                         </div>
-                        <RemoveMemberButton>
+                        <RemoveMemberButton onClick={() => handleRemoveRole(member.userId)}>
                             <MdClose size={12} />
                         </RemoveMemberButton>
                     </RoleMemberContainer>

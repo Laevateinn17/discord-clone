@@ -7,6 +7,7 @@ import { formatDynamicAPIAccesses } from "next/dist/server/app-render/dynamic-re
 import { AssignRoleDTO } from "@/interfaces/dto/assign-role.dto";
 import { GuildMember } from "@/interfaces/guild-member";
 import { Role } from "@/interfaces/role";
+import { UpdateMemberDTO } from "@/interfaces/dto/update-member.dto";
 
 
 const ENDPOINT = `${process.env.NEXT_PUBLIC_API_URL}/guilds`
@@ -152,6 +153,32 @@ export async function assignRoleMembers(dto: AssignRoleDTO): Promise<Response<Gu
 export async function createRole(guildId: string): Promise<Response<Role>> {
     try {
         const response = await api.post(`${ENDPOINT}/${guildId}/roles`, null, {
+            withCredentials: true
+        });
+        if (response.status === HttpStatusCode.Ok) {
+            return Response.Success({
+                data: response.data.data,
+                message: response.data.message
+            });
+        }
+        return Response.Failed({
+            message: response.data.message
+        });
+    } catch (error) {
+        if (error instanceof AxiosError)
+            return Response.Failed({
+                message: error.response ? error.response.data.message as string : "An unknown Error occurred"
+            });
+    }
+
+    return Response.Failed({
+        message: "An unknown error occurred."
+    })
+}
+
+export async function updateMember(dto: UpdateMemberDTO): Promise<Response<GuildMember>> {
+    try {
+        const response = await api.patch(`${ENDPOINT}/${dto.guildId}/members/${dto.memberId}`, dto, {
             withCredentials: true
         });
         if (response.status === HttpStatusCode.Ok) {
