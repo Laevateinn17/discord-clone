@@ -12,6 +12,7 @@ import ButtonDanger from "../buttons/button-danger";
 import { useGetGuild } from "@/app/stores/guilds-store";
 import { useDeleteGuildChannelMutation, useLeaveGuildMutation } from "@/hooks/mutations";
 import { leaveGuild } from "@/services/guild/guild.service";
+import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -159,7 +160,7 @@ function RadioButton({ children, isSelected, onClick }: { children: ReactNode, i
 export function LeaveGuildModal({ guildId, onClose }: { guildId: string, onClose: () => void }) {
     const [error, setError] = useState<string | undefined>(undefined);
     const router = useRouter();
-    const { closeModal } = useModal();
+    const { closeSettings } = useSettingsOverlay();
     const guild = useGetGuild(guildId)!;
     const { mutateAsync: leaveGuild, isPending } = useLeaveGuildMutation();
 
@@ -173,7 +174,7 @@ export function LeaveGuildModal({ guildId, onClose }: { guildId: string, onClose
         router.push(`/channels/me`);
 
         onClose();
-        closeModal(ModalType.CHANNEL_SETTINGS);
+        closeSettings
     }
 
     return (

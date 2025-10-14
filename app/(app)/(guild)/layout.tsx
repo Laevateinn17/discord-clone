@@ -22,6 +22,10 @@ import { useLeaveGuildMutation } from "@/hooks/mutations";
 import { useModal } from "@/contexts/modal.context";
 import { ModalType } from "@/enums/modal-type.enum";
 import { UserPresenceProvider } from "@/contexts/user-presence.context";
+import { checkPermission, getEffectivePermission } from "@/helpers/permissions.helper";
+import { Permissions } from "@/enums/permissions.enum";
+import { SettingsOverlayType } from "@/enums/settings-overlay-type.enum";
+import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
 
 const HeaderContainer = styled.div`
     padding: 12px 8px 12px 16px;
@@ -115,6 +119,7 @@ function Header({ guild }: { guild: Guild }) {
     const menuRef = useRef<HTMLDivElement>(null!);
     const menuButtonRef = useRef<HTMLDivElement>(null!);
     const { openModal } = useModal();
+    const { openSettings } = useSettingsOverlay();
 
     useEffect(() => {
         const handleClickOutside = (evt: MouseEvent) => {
@@ -128,7 +133,7 @@ function Header({ guild }: { guild: Guild }) {
     }, [showMenu]);
 
     function openGuildSettings() {
-        openModal(ModalType.GUILD_SETTINGS, { guildId: guild.id });
+        openSettings(SettingsOverlayType.GUILD_SETTINGS, { guildId: guild.id });
         setShowMenu(false);
     }
 
@@ -163,8 +168,22 @@ function Header({ guild }: { guild: Guild }) {
 export default function Page({ children }: { children: ReactNode }) {
     const { guildId } = useParams();
     const { getGuild } = useGuildsStore();
-    const guild = getGuild(guildId as string)
-    const [categories, setCategories] = useState<Channel[]>([]);
+    const guild = getGuild(guildId as string);
+    const { user } = useCurrentUserStore();
+    const member = guild?.members.find(member => member.userId === user.id);
+    const parents = guild?.channels.filter(channel => {
+        const permission = member ? getEffectivePermission(member, guild, channel) : 0n;
+        const visibleChildren = guild.channels.filter(ch => {
+            if (!member) return false;
+            const permission = getEffectivePermission(member, guild, ch);
+            return ch.parent?.id === channel.id && checkPermission(permission, Permissions.VIEW_CHANNELS);
+        });
+
+        return !channel.parent
+            && (channel.type === ChannelType.Category ? checkPermission(permission, Permissions.VIEW_CHANNELS) || visibleChildren.length > 0 : true)
+            && checkPermission(permission, Permissions.VIEW_CHANNELS);
+    }) ?? [];
+
     const router = useRouter();
     const { showMenu } = useContextMenu();
     useEffect(() => {
@@ -173,7 +192,6 @@ export default function Page({ children }: { children: ReactNode }) {
             return;
         }
 
-        setCategories(guild.channels.filter(ch => ch.type === ChannelType.Category));
     }, [guild])
 
     if (!guild) {
@@ -190,17 +208,26 @@ export default function Page({ children }: { children: ReactNode }) {
                     </SidebarHeader>
                     <SidebarContentContainer>
                         <div className="py-[8px]">
-                            {guild?.channels.filter(ch => !ch.parent && ch.type !== ChannelType.Category).map(ch => {
-                                return (
-                                    <div className="mt-[8px] px-[8px]" key={ch.id}>
-                                        <ChannelButton collapse={false} channel={ch} />
+                            {parents.sort((a, b) => a.createdAt > b.createdAt ? 1 : a.createdAt === b.createdAt ? 0 : -1).map(channel => {
+                                const visibleChannels = guild.channels.filter(ch => {
+                                    if (!member) return false;
+                                    const permission = getEffectivePermission(member, guild, ch);
+                                    return ch.parent?.id === channel.id && checkPermission(permission, Permissions.VIEW_CHANNELS);
+                                });
+
+                                if (channel.type === ChannelType.Category) {
+                                    return <div className="px-[8px]" key={channel.id}>
+                                        <ChannelCategory channel={channel} children={visibleChannels}></ChannelCategory>
                                     </div>
-                                );
-                            })}
-                            {categories.sort((a, b) => a.createdAt > b.createdAt ? 1 : a.createdAt === b.createdAt ? 0 : -1).map(cat => {
-                                return <div className="px-[8px]" key={cat.id}>
-                                    <ChannelCategory channel={cat} children={guild ? guild.channels.filter(ch => ch.parent && ch.parent.id === cat.id) : []}></ChannelCategory>
-                                </div>
+                                }
+                                else {
+                                    return (
+                                        <div className="mt-[8px] px-[8px]" key={channel.id}>
+                                            <ChannelButton collapse={false} channel={channel} />
+                                        </div>
+                                    );
+
+                                }
                             })}
                         </div>
                     </SidebarContentContainer>

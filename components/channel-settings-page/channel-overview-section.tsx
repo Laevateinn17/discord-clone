@@ -110,7 +110,6 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
     }
 
 
-
     return (
         <div className="flex flex-col gap-[16px] w-full relative">
             <div className="flex flex-col">

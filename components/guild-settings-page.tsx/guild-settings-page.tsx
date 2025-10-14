@@ -1,15 +1,8 @@
 
 import { Fragment, ReactNode, useEffect, useMemo, useState } from "react"
 import styles from "./styles.module.css"
-import { useLogoutMutation } from "@/hooks/mutations"
 import styled from "styled-components"
-import { Channel } from "@/interfaces/channel"
 import { FaTrash } from "react-icons/fa6"
-import { ChannelType } from "@/enums/channel-type.enum"
-import { PiHash } from "react-icons/pi"
-import { ModalType } from "@/enums/modal-type.enum"
-import { useRouter } from "next/navigation"
-import { useModal } from "@/contexts/modal.context"
 import { useGuildsStore } from "@/app/stores/guilds-store"
 import { RoleSettingsSection } from "./roles-settings-section"
 
@@ -32,7 +25,6 @@ export const SettingsSectionHeader = styled.h2`
 `
 
 export default function GuildSettingsPage({ guildId, show, onClose }: GuildSettingsPageProps) {
-    const { openModal } = useModal();
     const { getGuild } = useGuildsStore();
     const guild = getGuild(guildId);
     const sidebarItems: Record<string, SidebarItem[]> = {

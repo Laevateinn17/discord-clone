@@ -3,15 +3,19 @@ import { useContextMenu } from "@/contexts/context-menu.context";
 import { useModal } from "@/contexts/modal.context";
 import { ContextMenuType } from "@/enums/context-menu-type.enum";
 import { ModalType } from "@/enums/modal-type.enum";
+import { PermissionOverwriteTargetType } from "@/enums/permission-overwrite-target-type.enum";
 import { RelationshipType } from "@/enums/relationship-type.enum";
 import { useDeleteRelationshipMutation } from "@/hooks/mutations";
 import { useDMChannelsQuery } from "@/hooks/queries";
+import { Channel } from "@/interfaces/channel";
 import { Guild } from "@/interfaces/guild";
+import { GuildMember } from "@/interfaces/guild-member";
 import Relationship from "@/interfaces/relationship";
+import { Role } from "@/interfaces/role";
 import { createDMChannel } from "@/services/channels/channels.service";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { FaAngleRight } from "react-icons/fa6";
+import { FaAngleRight, FaTrash } from "react-icons/fa6";
 import styled from "styled-components";
 
 
@@ -64,7 +68,7 @@ function UserContextMenu({ relationship }: { relationship: Relationship }) {
             <div className="">
                 <ListItem>Profile</ListItem>
                 <ListItem onClick={async () => {
-                    const channel = channels?.find(ch => ch.recipients[0].id == relationship.user.id);
+                    const channel = channels?.find(ch => ch.recipients![0].id === relationship.user.id);
                     if (!channel) {
                         await createDMChannel(relationship.user.id);
                     }
@@ -95,6 +99,23 @@ function UserContextMenu({ relationship }: { relationship: Relationship }) {
             </div>
         </Fragment>
     )
+}
+
+function RemovePermissionOverwriteContextMenu({ channel, target, targetType }: { channel: Channel, target: Role | GuildMember, targetType: PermissionOverwriteTargetType }) {
+    const { openModal } = useModal();
+    return (
+        <Fragment>
+            <div className="">
+                <ListItem
+                    className="flex items-center justify-between text-[var(--text-danger)]"
+                    onClick={() => openModal(ModalType.REMOVE_PERMISSION_OVERWRITE, { channel, target, targetType })}
+                >
+                    <p>{targetType === PermissionOverwriteTargetType.ROLE ? "Remove Role" : "Remove User"}</p>
+                    <FaTrash color="var(--text-danger)" />
+                </ListItem>
+            </div>
+        </Fragment>
+    );
 }
 
 function GuildSidebarContextMenu({ guild }: { guild: Guild }) {
@@ -164,6 +185,7 @@ export default function ContextMenu() {
         <ContextMenuContainer className="absolute" style={{ top: position.y, left: position.x }} ref={menuRef}>
             {menuState.type === ContextMenuType.USER && <UserContextMenu relationship={menuState.data} />}
             {menuState.type === ContextMenuType.GUILD_SIDEBAR && <GuildSidebarContextMenu guild={menuState.data} />}
+            {menuState.type === ContextMenuType.REMOVE_PERMISSION_OVERWRITE && <RemovePermissionOverwriteContextMenu channel={menuState.data.channel} target={menuState.data.target} targetType={menuState.data.targetType} />}
         </ContextMenuContainer>
     );
 }

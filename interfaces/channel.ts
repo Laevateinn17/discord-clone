@@ -8,10 +8,10 @@ export interface Channel {
     id: string;
     name?: string;
     type: ChannelType;
-    isPrivate: boolean
     createdAt: Date;
     updatedAt: Date;
     parent?: Channel;
+    isSynced: boolean;
     guildId: string;
     recipients?: UserProfile[];
     lastMessageId?: string;

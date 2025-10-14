@@ -2,6 +2,7 @@ import { useVoiceEvents } from "@/app/(auth)/hooks/socket-events";
 import { useAppSettingsStore } from "@/app/stores/app-settings-store";
 import { useGuildsStore } from "@/app/stores/guilds-store";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
+import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import { useGetChannelVoiceStates, useVoiceStateStore } from "@/app/stores/voice-state-store";
 import Tooltip from "@/components/tooltip/tooltip";
@@ -9,6 +10,7 @@ import UserAvatar from "@/components/user-avatar/user-avatar";
 import { useModal } from "@/contexts/modal.context";
 import { ChannelType } from "@/enums/channel-type.enum";
 import { ModalType } from "@/enums/modal-type.enum";
+import { SettingsOverlayType } from "@/enums/settings-overlay-type.enum";
 import { VoiceEventType } from "@/enums/voice-event-type";
 import { Channel } from "@/interfaces/channel";
 import { VoiceState } from "@/interfaces/voice-state";
@@ -133,6 +135,7 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
 
     const [active, setActive] = useState(false);
     const { openModal } = useModal();
+    const { openSettings } = useSettingsOverlay();
     const voiceStates = useGetChannelVoiceStates(channel.id);
     const { activeSpeakers } = useMediasoupStore();
     const { emitVoiceEvent } = useVoiceEvents();
@@ -180,7 +183,7 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                                 }} />
                                 <EditChannelButton onClick={(e) => {
                                     e.stopPropagation();
-                                    openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
+                                    openSettings(SettingsOverlayType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
                                 }} />
                             </ActionButtonContainer>
                         </Fragment>
@@ -197,7 +200,7 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                                 }} />
                                 <EditChannelButton onClick={(e) => {
                                     e.stopPropagation();
-                                    openModal(ModalType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
+                                    openSettings(SettingsOverlayType.CHANNEL_SETTINGS, { channelId: channel.id, guildId: channel.guildId })
                                 }} />
                             </ActionButtonContainer>
                         </Fragment>

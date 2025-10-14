@@ -1,4 +1,3 @@
-
 import Modal from "@/components/modals/modal";
 import { Channel } from "@/interfaces/channel";
 import { ReactNode, useState } from "react";
@@ -9,8 +8,12 @@ import { ChannelType } from "@/enums/channel-type.enum";
 import { useRouter } from "next/navigation";
 import ButtonDanger from "../buttons/button-danger";
 import { useGetGuild } from "@/app/stores/guilds-store";
-import { useDeleteGuildChannelMutation } from "@/hooks/mutations";
-import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
+import { useDeleteGuildChannelMutation, useDeletePermissionOverwrite } from "@/hooks/mutations";
+import { useSettingsOverlay } from "@/contexts/settings-overlay.context";
+import { GuildMember } from "@/interfaces/guild-member";
+import { Role } from "@/interfaces/role";
+import { PermissionOverwriteTargetType } from "@/enums/permission-overwrite-target-type.enum";
+import { useGetUserProfile } from "@/app/stores/user-profiles-store";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -103,30 +106,20 @@ const ContentFooter = styled.div`
     gap: 8px;
 `
 
-export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onClose: () => void }) {
-    const [error, setError] = useState<string | undefined>(undefined);
+export function RemovePermissionOverwriteModal({ channel, target, targetType, onClose }: { channel: Channel, target: Role | GuildMember, targetType: PermissionOverwriteTargetType, onClose: () => void }) {
     const router = useRouter();
-    const { closeSettings } = useSettingsOverlay();
-    const guild = useGetGuild(channel.guildId);
-    const { mutateAsync: deleteChannel, isPending } = useDeleteGuildChannelMutation(channel.guildId);
+    const profile = targetType === PermissionOverwriteTargetType.MEMBER ? useGetUserProfile((target as GuildMember).userId) : undefined;
+    const { mutateAsync: deletePermissionOverwrite, isPending } = useDeletePermissionOverwrite();
 
-    async function handleCreateChannel() {
-        const response = await deleteChannel(channel.id);
+    async function handleRemovePermissionOverwrite() {
+        const targetId = targetType === PermissionOverwriteTargetType.MEMBER ? (target as GuildMember).userId : (target as Role).id;
+
+        const response = await deletePermissionOverwrite({ channelId: channel.id, targetId });
         if (!response.success) {
-            setError(response.message as string);
             return;
         }
 
-        const remainingChannels = guild?.channels.filter(ch => ch.id !== channel.id && ch.type === ChannelType.Text) ?? [];
-
-        if (remainingChannels.length > 0) {
-            router.push(`/channels/${guild!.id}/${remainingChannels[0].id}`);
-        } else {
-            router.push(`/channels/${channel.guildId}`);
-        }
-
         onClose();
-        closeSettings();
     }
 
     return (
@@ -134,18 +127,18 @@ export function DeleteChannelModal({ channel, onClose }: { channel: Channel, onC
             <ContentContainer>
                 <ContentHeader>
                     <div className="flex flex-col">
-                        <h1>Delete Channel</h1>
+                        <h1>Delete Permission Settings</h1>
                     </div>
                     <button onClick={onClose}><MdClose size={24} /></button>
                 </ContentHeader>
                 <ContentBody>
                     <ContentSection>
-                        <p>Are you sure you want to delete <b>{channel.type === ChannelType.Text ? `#${channel.name}` : channel.name}</b>? this cannot be undone.</p>
+                        <p>Are you sure you want to delete <b>{targetType === PermissionOverwriteTargetType.MEMBER ? profile?.username : (target as Role).name}</b>? this action cannot be undone.</p>
                     </ContentSection>
                 </ContentBody>
                 <ContentFooter>
                     <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
-                    <ButtonDanger disabled={isPending} onClick={handleCreateChannel} size="lg">Delete Channel</ButtonDanger>
+                    <ButtonDanger disabled={isPending} onClick={handleRemovePermissionOverwrite} size="lg">Delete</ButtonDanger>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

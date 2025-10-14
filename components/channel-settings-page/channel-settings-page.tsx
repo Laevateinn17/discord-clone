@@ -13,6 +13,7 @@ import { useModal } from "@/contexts/modal.context"
 import { ChannelOverviewSection } from "./channel-overview-section"
 import { useGuildsStore } from "@/app/stores/guilds-store"
 import { ChannelInvitesSection } from "./channel-invites-section"
+import { ChannelPermissionsSection } from "./channel-permissions-section"
 
 interface ChannelSettingsPageProps {
     guildId: string;
@@ -45,7 +46,7 @@ export default function ChannelSettingsPage({ channelId, guildId, show, onClose 
         },
         {
             id: "permissions",
-            page: undefined,
+            page: <ChannelPermissionsSection channelId={channelId} guildId={guildId} />,
             element: <p>Permissions</p>
         },
         {

@@ -17,7 +17,7 @@ import { ContextMenuProvider } from "@/contexts/context-menu.context";
 import AppStateProvider, { useAppState } from "@/contexts/app-state.context";
 import SocketProvider, { useSocket } from "@/contexts/socket.context";
 import { UserPresenceProvider, useUserPresence } from "@/contexts/user-presence.context";
-import { CLIENT_READY_EVENT} from "@/constants/events";
+import { CLIENT_READY_EVENT } from "@/constants/events";
 import { UserProfile } from "@/interfaces/user-profile";
 import { unique } from "next/dist/build/utils";
 import { useGetUserProfile, useUserProfileStore } from "../stores/user-profiles-store";
@@ -37,6 +37,7 @@ import { ModalProvider, useModal } from "@/contexts/modal.context";
 import { ModalType } from "@/enums/modal-type.enum";
 import { useGuildsStore } from "../stores/guilds-store";
 import { Guild } from "@/interfaces/guild";
+import { SettingsOverlayProvider } from "@/contexts/settings-overlay.context";
 
 interface HomeLayoutProps {
     children: ReactNode
@@ -411,19 +412,21 @@ export default function HomeLayout({ children, sidebar }: HomeLayoutProps) {
             <AppInitializer>
                 <ModalProvider>
                     <ContextMenuProvider>
-                        <div className={styles["page"]}>
-                            <Fragment>
-                                <div className={`${styles["main-content"]}`}>
-                                    <GuildListSidebar />
-                                    <div className="absolute bottom-[8px] left-[8px] w-[358px]">
-                                        <UserArea />
+                        <SettingsOverlayProvider>
+                            <div className={styles["page"]}>
+                                <Fragment>
+                                    <div className={`${styles["main-content"]}`}>
+                                        <GuildListSidebar />
+                                        <div className="absolute bottom-[8px] left-[8px] w-[358px]">
+                                            <UserArea />
+                                        </div>
+                                        {children}
                                     </div>
-                                    {children}
-                                </div>
-                            </Fragment>
-                        </div>
+                                </Fragment>
+                            </div>
+                            <VoiceRingManager />
+                        </SettingsOverlayProvider>
                     </ContextMenuProvider>
-                    <VoiceRingManager />
                 </ModalProvider>
             </AppInitializer>
             <PeerConnectionManager />

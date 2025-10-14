@@ -289,9 +289,9 @@ export default function Page() {
             const members = allowedMembers.filter(member => {
                 const memberRoles = hoistedRoles.filter(role => member.roles.includes(role.id)).sort((a, b) => b.position - a.position);
                 const highestRole = memberRoles.length > 0 ? memberRoles[0] : null;
-                
+
                 return highestRole?.id === role.id && member.roles.find(roleId => roleId === role.id) && isUserOnline(member.userId)
-        });
+            });
 
             if (members.length > 0) groups.push({ role, members });
         }
@@ -368,12 +368,12 @@ export default function Page() {
                         {roleGroups.length > 0 && roleGroups.map(({ role, members }) => {
                             const roleColor = role ? getRoleColor(role?.color) : "";
                             return (
-                                <div>
+                                <div key={role?.id ?? '1'}>
                                     <h3>{role ? role.name : 'Online'} — {members.length}</h3>
                                     {members.map(member => {
                                         const user = getUserProfile(member.userId);
                                         return (
-                                            <MemberItem>
+                                            <MemberItem key={member.userId}>
                                                 <div className="mr-[12px]">
                                                     {user && <UserAvatar user={user} showStatus={true} isTyping={isUserTyping(channel.id, user.id)} />}
                                                 </div>
@@ -394,7 +394,7 @@ export default function Page() {
                                 {offlineMembers.map(member => {
                                     const user = getUserProfile(member.userId);
                                     return (
-                                        <MemberItem>
+                                        <MemberItem key={member.userId}>
                                             <div className="mr-[12px]">
                                                 {user && <UserAvatar user={user} showStatus={true} isTyping={isUserTyping(channel.id, user.id)} />}
                                             </div>

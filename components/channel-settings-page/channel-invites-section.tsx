@@ -1,5 +1,5 @@
 import { Invite } from "@/interfaces/invite";
-import { getChannelInvites } from "@/services/channels/channels.service";
+import { getChannelInvites, updatePermissionOverwrite } from "@/services/channels/channels.service";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import ButtonDanger from "../buttons/button-danger";

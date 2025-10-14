@@ -30,6 +30,8 @@ import { useVoiceEvents } from "@/app/(auth)/hooks/socket-events";
 import { VoiceEventType } from "@/enums/voice-event-type";
 import { useGetGuildChannel } from "@/app/stores/guilds-store";
 import { channel } from "diagnostics_channel";
+import { SettingsOverlayType } from "@/enums/settings-overlay-type.enum";
+import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
 
 const Container = styled.div`
   width: 100%;
@@ -201,7 +203,7 @@ export default function UserArea() {
     const { getUserProfile } = useUserProfileStore();
     const { mediaSettings, setMuted, setDeafened } = useAppSettingsStore();
     const { channelId } = useMediasoupStore();
-    const { openModal } = useModal();
+    const { openSettings } = useSettingsOverlay();
 
     useEffect(() => {
         function handleOutsideClick(e: MouseEvent) {
@@ -258,7 +260,7 @@ export default function UserArea() {
                         </IconContainer>
                     </TransparentButton>
                     <TransparentButton
-                        onClick={() => openModal(ModalType.SETTINGS)}
+                        onClick={() => openSettings(SettingsOverlayType.SETTINGS)}
                         tooltipSize="14px"
                         tooltip="User Settings"
                         tooltipPosition="top">

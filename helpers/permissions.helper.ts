@@ -72,3 +72,9 @@ export function getEffectivePermission(member: GuildMember, guild: Guild, channe
 export function checkPermission(memberPermission: bigint, permission: bigint) {
     return (memberPermission & permission) === permission;
 }
+
+export function getPermissionStatus(overwrite: PermissionOverwrite, perm: bigint): -1 | 0 | 1 {
+  if ((BigInt(overwrite.deny) & perm) === perm) return -1;
+  if ((BigInt(overwrite.allow) & perm) === perm) return 1;
+  return 0;
+}

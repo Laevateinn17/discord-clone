@@ -11,7 +11,7 @@ import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { MessageStatus } from "@/enums/message-status.enum";
 import { useChannelsStore, useGetChannel } from "@/app/stores/channels-store";
 import { useGuildsStore } from "@/app/stores/guilds-store";
-import { createDMChannel, createGuildChannel, deleteChannel } from "@/services/channels/channels.service";
+import { createDMChannel, createGuildChannel, deleteChannel, deletePermissionOverwrite, syncChannel, updatePermissionOverwrite } from "@/services/channels/channels.service";
 import { CreateChannelDTO } from "@/interfaces/dto/create-channel.dto";
 import { Guild } from "@/interfaces/guild";
 import { joinGuild } from "@/services/invites/invites.service";
@@ -20,6 +20,9 @@ import { assignRoleMembers, createRole, leaveGuild, updateMember, updateRole } f
 import { AssignRoleDTO } from "@/interfaces/dto/assign-role.dto";
 import { UpdateMemberDTO } from "@/interfaces/dto/update-member.dto";
 import { Role } from "@/interfaces/role";
+import { PermissionOverwrite } from "@/interfaces/permission-ovewrite";
+import { updatePermissionOverwriteDTO } from "@/interfaces/dto/update-permission-overwrite.dto";
+import { Channel } from "@/interfaces/channel";
 
 
 
@@ -361,8 +364,68 @@ export function useUpdateRole() {
             if (!response.success) throw new Error(response.message as string);
 
             const { upsertRole } = useGuildsStore.getState();
-            console.log('updating store', response.data);
             upsertRole(dto.guildId, response.data!);
+        }
+    })
+}
+
+export function useUpdatePermissionOverwrite(parentId?: string) {
+    return useMutation({
+        mutationFn: (dto: updatePermissionOverwriteDTO) => updatePermissionOverwrite(dto),
+        onSuccess: (response, dto) => {
+            if (!response.success) throw new Error(response.message as string);
+
+            const overwrite = response.data!;
+            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const channel = getChannel(dto.channelId);
+            const parent = parentId ? getChannel(parentId) : undefined;
+            if (!channel) return;
+
+            if (channel.isSynced) {
+                channel.isSynced = false;
+                channel.permissionOverwrites = parent!.permissionOverwrites;
+            }
+            const oldOverwrites = channel.permissionOverwrites;
+            if (oldOverwrites.find(ow => ow.targetId === overwrite.targetId)) {
+                channel.permissionOverwrites = oldOverwrites.map(ow => ow.targetId !== overwrite!.targetId ? ow : response.data!);
+            }
+            else {
+                channel.permissionOverwrites = [...oldOverwrites, overwrite]
+            }
+            updateChannel(channel.guildId, channel.id, channel);
+        }
+    })
+}
+
+export function useSyncChannel() {
+    return useMutation({
+        mutationFn: (channelId: string) => syncChannel(channelId),
+        onSuccess: (response, channelId) => {
+            if (!response.success) throw new Error(response.message as string);
+
+            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const channel = getChannel(channelId);
+            if (!channel) return;
+
+            updateChannel(channel.guildId, channel.id, response.data!);
+        }
+    });
+}
+
+export function useDeletePermissionOverwrite() {
+    return useMutation({
+        mutationFn: ({ channelId, targetId }: { channelId: string, targetId: string }) => deletePermissionOverwrite(channelId, targetId),
+        onSuccess: (response, dto) => {
+            if (!response.success) throw new Error(response.message as string);
+
+            const overwrite = response.data!;
+            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const channel = getChannel(dto.channelId);
+            if (!channel) return;
+
+            const oldOverwrites = channel.permissionOverwrites;
+            channel.permissionOverwrites = oldOverwrites.filter(ow => ow.targetId !== dto.targetId);
+            updateChannel(channel.guildId, channel.id, channel);
         }
     })
 }
