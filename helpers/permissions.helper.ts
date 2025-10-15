@@ -46,7 +46,7 @@ export function applyChannelOverwrites(basePermission: bigint, overwrites: Permi
     return effective;
 }
 
-export function getEffectivePermission(member: GuildMember, guild: Guild, channel?: Channel): bigint {
+export function getEffectivePermission(member: GuildMember, guild: Guild, channel?: Channel, parent?: Channel): bigint {
     if (guild.ownerId === member.userId) {
         return ALL_PERMISSIONS;
     }
@@ -61,10 +61,8 @@ export function getEffectivePermission(member: GuildMember, guild: Guild, channe
     }
 
     if (channel) {
-        basePermissions = applyChannelOverwrites(basePermissions, channel.permissionOverwrites, member.userId, roles, guild.id);
+        basePermissions = applyChannelOverwrites(basePermissions, channel.isSynced && parent ? parent.permissionOverwrites : channel.permissionOverwrites, member.userId, roles, guild.id);
     }
-
-    console.log(member.userId, basePermissions.toString(2));
 
     return basePermissions;
 }

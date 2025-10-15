@@ -1,5 +1,6 @@
 import { useVoiceEvents } from "@/app/(auth)/hooks/socket-events";
 import { useAppSettingsStore } from "@/app/stores/app-settings-store";
+import { useChannelsStore } from "@/app/stores/channels-store";
 import { useGuildsStore } from "@/app/stores/guilds-store";
 import { useMediasoupStore } from "@/app/stores/mediasoup-store";
 import { useSettingsOverlay } from "@/app/stores/settings-overlay-store";
@@ -10,14 +11,17 @@ import UserAvatar from "@/components/user-avatar/user-avatar";
 import { useModal } from "@/contexts/modal.context";
 import { ChannelType } from "@/enums/channel-type.enum";
 import { ModalType } from "@/enums/modal-type.enum";
+import { Permissions } from "@/enums/permissions.enum";
 import { SettingsOverlayType } from "@/enums/settings-overlay-type.enum";
 import { VoiceEventType } from "@/enums/voice-event-type";
+import { checkPermission } from "@/helpers/permissions.helper";
 import { Channel } from "@/interfaces/channel";
 import { VoiceState } from "@/interfaces/voice-state";
 import { ringChannelRecipients } from "@/services/channels/channels.service";
 import { getImageURL } from "@/services/storage/storage.service";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, MouseEvent, MouseEventHandler, useEffect, useState } from "react";
+import { FaLock } from "react-icons/fa6";
 import { PiHash } from "react-icons/pi";
 import styled from "styled-components";
 
@@ -93,6 +97,20 @@ const VoiceStateDisplayName = styled.p`
     }
 `
 
+const ChannelLockedIcon = styled.div`
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px;
+    // border-radius: 50%;
+
+    //  -webkit-mask-image: radial-gradient(circle 12px at 100% 0%, transparent 0%, black 100%);
+    // mask-image: radial-gradient(circle 12px at 100% 0%, transparent 0%, black 100%);
+    // mask-repeat: no-repeat;
+    // mask-composite: exclude;
+    // pointer-events: none; /* let clicks pass through */
+`
+
 
 function CreateInviteButton({ onClick }: { onClick: (e: MouseEvent<HTMLDivElement>) => void }) {
     const [hover, setHover] = useState(false)
@@ -141,6 +159,15 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
     const { emitVoiceEvent } = useVoiceEvents();
     const { mediaSettings } = useAppSettingsStore();
     const { getUserProfile } = useUserProfileStore();
+    const { getChannel } = useGuildsStore();
+    const parent = channel.parent ? getChannel(channel.parent.id) : undefined;
+    const everyoneOW = channel.isSynced
+        ? parent!.permissionOverwrites.find(ow => ow.targetId === channel.guildId)
+        : channel.permissionOverwrites.find(ow => ow.targetId === channel.guildId);
+
+    const isHiddenFromEveryone = everyoneOW
+        ? checkPermission(BigInt(everyoneOW.deny), Permissions.VIEW_CHANNELS)
+        : false;
 
     async function handleJoinVoiceCall() {
         emitVoiceEvent(channel.id, VoiceEventType.VOICE_JOIN, {
@@ -173,7 +200,12 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                     channel.type === ChannelType.Text ?
                         <Fragment>
                             <ChannelInfo>
-                                <PiHash size={20} strokeWidth={5} />
+                                <div className="relative">
+                                    <PiHash size={20} strokeWidth={5} />
+                                    {isHiddenFromEveryone && <ChannelLockedIcon>
+                                        <FaLock size={8} />
+                                    </ChannelLockedIcon>}
+                                </div>
                                 <p>{channel.name}</p>
                             </ChannelInfo>
                             <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
@@ -190,7 +222,12 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
                         :
                         <Fragment>
                             <ChannelInfo>
-                                <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3a1 1 0 0 0-1-1h-.06a1 1 0 0 0-.74.32L5.92 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.92l4.28 4.68a1 1 0 0 0 .74.32H11a1 1 0 0 0 1-1V3ZM15.1 20.75c-.58.14-1.1-.33-1.1-.92v-.03c0-.5.37-.92.85-1.05a7 7 0 0 0 0-13.5A1.11 1.11 0 0 1 14 4.2v-.03c0-.6.52-1.06 1.1-.92a9 9 0 0 1 0 17.5Z"></path><path fill="currentColor" d="M15.16 16.51c-.57.28-1.16-.2-1.16-.83v-.14c0-.43.28-.8.63-1.02a3 3 0 0 0 0-5.04c-.35-.23-.63-.6-.63-1.02v-.14c0-.63.59-1.1 1.16-.83a5 5 0 0 1 0 9.02Z"></path></svg>
+                                <div className="relative">
+                                    <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3a1 1 0 0 0-1-1h-.06a1 1 0 0 0-.74.32L5.92 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.92l4.28 4.68a1 1 0 0 0 .74.32H11a1 1 0 0 0 1-1V3ZM15.1 20.75c-.58.14-1.1-.33-1.1-.92v-.03c0-.5.37-.92.85-1.05a7 7 0 0 0 0-13.5A1.11 1.11 0 0 1 14 4.2v-.03c0-.6.52-1.06 1.1-.92a9 9 0 0 1 0 17.5Z"></path><path fill="currentColor" d="M15.16 16.51c-.57.28-1.16-.2-1.16-.83v-.14c0-.43.28-.8.63-1.02a3 3 0 0 0 0-5.04c-.35-.23-.63-.6-.63-1.02v-.14c0-.63.59-1.1 1.16-.83a5 5 0 0 1 0 9.02Z"></path></svg>
+                                    {isHiddenFromEveryone && <ChannelLockedIcon>
+                                        <FaLock size={8} />
+                                    </ChannelLockedIcon>}
+                                </div>
                                 <p>{channel.name}</p>
                             </ChannelInfo>
                             <ActionButtonContainer className={`${hover || active ? 'active' : ''}`}>
