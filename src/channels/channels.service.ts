@@ -91,13 +91,14 @@ export class ChannelsService {
     }
 
     const guild = await this.guildsRepository.findOne({ where: { id: dto.guildId }, relations: ['members'] });
+    const effectivePermission = await (parent ? this.getEffectivePermission({ userId, channelId: dto.parentId, guildId: dto.guildId }) : this.guildsService.getBasePermission(userId, dto.guildId));
 
-    if (guild.ownerId !== userId) {
+    if ((effectivePermission & Permissions.MANAGE_CHANNELS) !== Permissions.MANAGE_CHANNELS) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
-        message: 'User is not permitted to create a channel for this guild'
-      }
+        message: 'User is not permitted to manage channel'
+      };
     }
 
     if (dto.name.length === 0) {
@@ -199,14 +200,16 @@ export class ChannelsService {
     }
 
     const guild = await this.guildsRepository.findOne({ where: { id: channel.guildId }, relations: ['members'] });
+    const effectivePermission = await this.getEffectivePermission({ userId, channelId: channel.isSynced ? channel.parentId : channel.id, guildId: channel.guildId });
 
-    if (guild.ownerId !== userId) {
+    if ((effectivePermission & Permissions.MANAGE_CHANNELS) !== Permissions.MANAGE_CHANNELS) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
-        message: 'User is not permitted to create a channel for this guild'
-      }
+        message: 'User is not permitted to manage channel'
+      };
     }
+
     try {
       await this.channelsRepository.delete({ id: channel.id });
     } catch (error) {
@@ -337,8 +340,6 @@ export class ChannelsService {
         return response.data!;
       }));
     }
-
-    console.log(channels);
 
     return {
       status: HttpStatus.OK,
@@ -881,9 +882,7 @@ export class ChannelsService {
     const client = await this.redisService.getClient();
     const key = this.getVoiceStateKey(dto.channelId, dto.userId);
     const rawState = await client.get(key);
-    console.log('a')
     if (typeof (rawState) !== 'string') return;
-    console.log('b')
     const oldState: VoiceState = JSON.parse(rawState);
     const newState: VoiceState = {
       ...oldState,
@@ -891,7 +890,6 @@ export class ChannelsService {
     };
 
     await client.set(key, JSON.stringify(newState));
-    console.log('c')
 
     let channel = await this.channelsRepository
       .createQueryBuilder('channel')
@@ -1176,7 +1174,7 @@ export class ChannelsService {
     if (channel.ownerId === userId) return effective;
 
     const memberRoles = await this.guildsService.getMemberRoles(userId, guildId);
-    effective = applyChannelOverwrites(effective, channel.permissionOverwrites, userId, memberRoles, guildId);
+    effective = applyChannelOverwrites(effective, channel.isSynced && channel.parent ? channel.parent.permissionOverwrites : channel.permissionOverwrites, userId, memberRoles, guildId);
 
     return effective;
   }
@@ -1271,7 +1269,6 @@ export class ChannelsService {
     try {
       if (channel.isSynced && channel.parentId) {
         channel.isSynced = false;
-        console.log('unsyncing')
         const parentOverwrites = await this.permissionOverwritesRepository.findBy({
           channelId: channel.parentId,
         });
@@ -1303,7 +1300,6 @@ export class ChannelsService {
           clonedOverwrites.push(overwrite);
         }
         await this.permissionOverwritesRepository.save(clonedOverwrites);
-        console.log(clonedOverwrites)
 
       } else {
         overwrite = await this.permissionOverwritesRepository.findOneBy({
@@ -1501,7 +1497,7 @@ export class ChannelsService {
 
 
     try {
-      await this.permissionOverwritesRepository.delete({targetId: overwrite.targetId, channelId: overwrite.channelId});
+      await this.permissionOverwritesRepository.delete({ targetId: overwrite.targetId, channelId: overwrite.channelId });
       channel.permissionOverwrites = channel.permissionOverwrites.filter(ow => ow.targetId !== targetId);
     } catch (error) {
       console.error(error)

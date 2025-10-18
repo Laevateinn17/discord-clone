@@ -9,6 +9,8 @@ import { AssignRoleDTO } from "./dto/assign-role.dto";
 import { CheckPermissionDTO } from "./dto/check-permission.dto";
 import { CheckPermissionResponseDTO } from "./dto/check-permission-response.dto";
 import { UpdateMemberDTO } from "./dto/update-member.dto";
+import { dot } from "node:test/reporters";
+import { UpdateGuildDTO } from "./dto/update-guild.dto";
 
 @Controller('guilds')
 export class GuildsController {
@@ -34,12 +36,27 @@ export class GuildsController {
 
   @GrpcMethod('GuildsService', 'FindAll')
   async findAllGrpc({ userId }: { userId: string }) {
-    return await this.guildsService.findAll(userId);
+    const response = await this.guildsService.findAll(userId);
+
+    console.log('response', response);
+
+    return response;
   }
 
   @Get(':id')
   async getDetail(@Headers('X-User-Id') userId: string, @Param('id') guildId: string, @Res() res: Response) {
     const result = await this.guildsService.findOne(userId, guildId);
+    const { status } = result;
+
+    return res.status(status).json(result);
+  }
+
+  @Patch(':id')
+  async updateGuild(@Headers('X-User-Id') userId: string, @Param('id') guildId: string, @Res() res: Response, @Body(new ValidationPipe({transform: true})) dto: UpdateGuildDTO) {
+    dto.userId = userId;
+    dto.guildId = guildId;
+    
+    const result = await this.guildsService.update(dto);
     const { status } = result;
 
     return res.status(status).json(result);

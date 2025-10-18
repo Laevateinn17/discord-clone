@@ -37,6 +37,7 @@ import { deadlineToString } from "@grpc/grpc-js/build/src/deadline";
 import { PermissionOverwrite } from "src/channels/entities/permission-overwrite.entity";
 import { PermissionOverwriteResponseDTO } from "src/channels/dto/permission-overwrite-response.dto";
 import { UpdateMemberDTO } from "./dto/update-member.dto";
+import { UpdateGuildDTO } from "./dto/update-guild.dto";
 
 @Injectable()
 export class GuildsService {
@@ -204,6 +205,9 @@ export class GuildsService {
         );
 
         data.roles = guild.roles.map(role => mapper.map(role, Role, RoleResponseDTO));
+        data.createdAt = guild.createdAt;
+        data.updatedAt = guild.updatedAt;
+        data.iconURL = guild.iconURL;
 
         return data;
       }),
@@ -747,6 +751,57 @@ export class GuildsService {
       status: HttpStatus.OK,
       data: memberDTO,
       message: 'Member updated successfully'
+    };
+  }
+
+  async update(dto: UpdateGuildDTO): Promise<Result<GuildResponseDTO>> {
+
+    const guild = await this.guildsRepository.findOne({where: {id: dto.guildId}, relations: ['members']});
+
+    if (!guild) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Guild does not exist'
+      };
+    }
+
+    if (dto.userId !== guild.ownerId) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        data: null,
+        message: 'Only owner is permitted to perform this action'
+      };
+    }
+
+    if (!dto.name || dto.name.length === 0) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Cannot be empty.'
+      };
+    }
+
+    guild.name = dto.name;
+
+    try {
+      await this.guildsRepository.save(guild);
+    } catch (error) {
+      console.error(error);
+
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while updating server data.'
+      }
+    }
+
+    const guildDTO = mapper.map(guild, Guild, GuildResponseDTO);
+
+    return {
+      status: HttpStatus.OK,
+      data: guildDTO,
+      message: 'Guild updated successfully'
     };
   }
 
