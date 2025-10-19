@@ -5,5 +5,6 @@ export enum GuildUpdateType {
     CHANNEL_UPDATE,
     CHANNEL_DELETE,
     MEMBERS_UPDATE,
-    ROLE_UPDATE
+    ROLE_UPDATE,
+    GUILD_UPDATE
 }

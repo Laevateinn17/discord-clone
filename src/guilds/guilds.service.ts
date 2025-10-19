@@ -756,8 +756,7 @@ export class GuildsService {
   }
 
   async update(dto: UpdateGuildDTO): Promise<Result<GuildResponseDTO>> {
-
-    const guild = await this.guildsRepository.findOne({where: {id: dto.guildId}, relations: ['members']});
+    const guild = await this.guildsRepository.findOne({ where: { id: dto.guildId }, relations: ['members'] });
 
     if (!guild) {
       return {
@@ -799,6 +798,19 @@ export class GuildsService {
 
     const guildDTO = mapper.map(guild, Guild, GuildResponseDTO);
 
+    try {
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
+        recipients: guild.members.map(m => m.userId).filter(id => id !== dto.userId),
+        data: {
+          guildId: guild.id,
+          data: guildDTO,
+          type: GuildUpdateType.GUILD_UPDATE
+        }
+      } as Payload<GuildUpdateDTO>)
+    } catch (error) {
+      console.error(error);
+    }
+
     return {
       status: HttpStatus.OK,
       data: guildDTO,
@@ -812,7 +824,7 @@ export class GuildsService {
   }
 
   async getGuildInvites(userId: string, guildId: string): Promise<Result<InviteResponseDTO[]>> {
-    const guild = await this.guildsRepository.findOneBy({id: guildId});
+    const guild = await this.guildsRepository.findOneBy({ id: guildId });
 
     if (!guild) {
       return {

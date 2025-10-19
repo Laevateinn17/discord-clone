@@ -218,7 +218,14 @@ export class ChannelsService {
     }
 
     try {
-      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, { recipients: guild.members.map(g => g.userId).filter(id => id !== userId), data: { guildId: guild.id, type: GuildUpdateType.CHANNEL_UPDATE, data: channelId } } as Payload<GuildUpdateDTO>);
+      this.gatewayMQ.emit(GUILD_UPDATE_EVENT, {
+        recipients: guild.members.map(g => g.userId).filter(id => id !== userId),
+        data: {
+          guildId: guild.id,
+          type: GuildUpdateType.CHANNEL_DELETE,
+          data: channelId
+        }
+      } as Payload<GuildUpdateDTO>);
     } catch (error) {
       console.error("Failed emitting channel delete update");
     }
