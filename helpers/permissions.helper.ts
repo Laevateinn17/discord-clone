@@ -60,10 +60,9 @@ export function getEffectivePermission(member: GuildMember, guild: Guild, channe
     for (const role of roles) {
         basePermissions = allowPermission(basePermissions, BigInt(role.permissions));
     }
-    if (channel?.id === '904b24de-062e-4e4c-bc23-22f5be8e7de1') console.log('1', basePermissions)
+
     if (channel) {
         basePermissions = applyChannelOverwrites(basePermissions, channel.isSynced && parent ? parent.permissionOverwrites : channel.permissionOverwrites, member.userId, roles, guild.id);
-        if (channel?.id === '904b24de-062e-4e4c-bc23-22f5be8e7de1') console.log('2', channel.isSynced, parent?.permissionOverwrites)
     }
 
     return basePermissions;

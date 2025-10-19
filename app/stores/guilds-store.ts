@@ -16,8 +16,7 @@ interface GuildStoreState {
     removeGuild: (guildId: string) => void;
     getGuild: (guildId: string) => Guild | undefined;
     getChannel: (channelId: string) => Channel | undefined;
-    addChannel: (guildId: string, channel: Channel) => void;
-    updateChannel: (guildId: string, channelId: string, channel: Channel) => void;
+    upsertChannel: (guildId: string, channelId: string, channel: Channel) => void;
     deleteChannel: (guildId: string, channelId: string) => void;
     updateChannelLastRead: (guildId: string, channelId: string, messageId: string) => void;
     upsertMember: (guildId: string, member: GuildMember) => void;
@@ -53,22 +52,6 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
 
         return { guilds: newGuilds };
     }),
-    addChannel: (guildId, channel) => {
-        set(state => {
-            const guild = state.guilds.get(guildId);
-            if (!guild) return state;
-
-            const updatedGuild = {
-                ...guild,
-                channels: [...guild.channels, channel],
-            };
-
-            const newGuilds = new Map(state.guilds);
-            newGuilds.set(guildId, updatedGuild);
-
-            return { guilds: newGuilds }
-        });
-    },
     getGuild: (guildId) => get().guilds.get(guildId),
     getChannel: (channelId) => {
         const guilds = get().guilds;
@@ -107,20 +90,23 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
             return { guilds: newGuilds };
         })
     },
-    updateChannel: (guildId, channelId, channel) => {
-
-        console.log(channelId, channel);
+    upsertChannel: (guildId, channelId, channel) => {
         set((state) => {
             const guild = state.guilds.get(guildId);
             if (!guild) return state;
-            const updatedChannels = guild.channels.map((ch) => {
-               if (ch.id === channelId) {
-                const newChannel = { ...ch, ...channel };
-                return newChannel;
-               }
-               else return ch
+            let updatedChannels = guild.channels
+            if (guild.channels.find(ch => ch.id === channelId)) {
+                updatedChannels = updatedChannels.map((ch) => {
+                    if (ch.id === channelId) {
+                        const newChannel = { ...ch, ...channel };
+                        return newChannel;
+                    }
+                    else return ch;
+                });
             }
-            );
+            else {
+                updatedChannels = [...updatedChannels, channel];
+            }
 
             const updatedGuild: Guild = { ...guild, channels: updatedChannels };
 

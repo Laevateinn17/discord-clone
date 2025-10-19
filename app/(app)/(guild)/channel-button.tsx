@@ -169,7 +169,7 @@ export default function ChannelButton({ channel, collapse }: { channel: Channel,
     const member = guild.members.find(m => m.userId === user.id);
     const parent = channel.parent ? getChannel(channel.parent.id) : undefined;
     const effectivePermission = member ? getEffectivePermission(member, guild, channel, parent) : 0n;
-    const everyoneOW = channel.isSynced
+    const everyoneOW = channel.isSynced && parent
         ? parent!.permissionOverwrites.find(ow => ow.targetId === channel.guildId)
         : channel.permissionOverwrites.find(ow => ow.targetId === channel.guildId);
 

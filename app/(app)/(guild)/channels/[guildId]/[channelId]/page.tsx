@@ -277,7 +277,8 @@ export default function Page() {
     const { isUserTyping } = useUserTypingStore();
     const { presenceMap, isUserOnline } = useUserPresenceStore();
     const allowedMembers = guild?.members.filter(member => {
-        const effectivePermission = getEffectivePermission(member, guild, channel);
+        const parent = guild.channels.find(ch => ch.id === channel?.parent?.id);
+        const effectivePermission = getEffectivePermission(member, guild, channel, parent);
         return checkPermission(effectivePermission, Permissions.VIEW_CHANNELS);
     }) ?? [];
     const offlineMembers = allowedMembers?.filter(re => !isUserOnline(re.userId)) ?? [];
@@ -307,7 +308,6 @@ export default function Page() {
         return groups;
     }, [allowedMembers, guild]);
 
-    console.log(roleGroups)
     if (!channel) {
         return <div>bingbong</div>
     }

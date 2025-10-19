@@ -15,6 +15,7 @@ import Checkbox from "../checkbox/checkbox";
 import ButtonSecondary from "../buttons/button-secondary";
 import ButtonPrimary from "../buttons/button-primary";
 import { useRouter } from "next/navigation";
+import { useCreateGuildChannelMutation } from "@/hooks/mutations";
 
 const ContentContainer = styled.div`
     background: var(--modal-background);
@@ -94,35 +95,21 @@ const ContentFooter = styled.div`
     gap: 8px;
 `
 
+const InputContainer = styled.div`
+    // min-height: 44px;
+    height: 44px;
+`
+
 
 export function CreateCategoryModal({ guildId, onClose }: { guildId: string, onClose: () => void }) {
-    const [category, setChannel] = useState<CreateChannelDTO>({ type: ChannelType.Category,  guildId, isPrivate: false, name: '' });
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | undefined>(undefined);
-    const router = useRouter();
-    const queryClient = useQueryClient();
-
-    function setChannelType(type: ChannelType) {
-        setChannel({ ...category, type })
-    }
+    const [category, setCategory] = useState<CreateChannelDTO>({ type: ChannelType.Category, guildId, isPrivate: false, name: '' });
+    const { mutateAsync: createCategory, error, isPending } = useCreateGuildChannelMutation();
 
 
     async function handleCreateChannel() {
-        setIsLoading(true);
-        const response = await createGuildChannel(category);
-        setIsLoading(false);
-        if (!response.success) {
-            setError(response.message as string);
-            return;
-        }
-        queryClient.setQueryData<Guild>([GUILDS_CACHE, guildId], (old) => {
-            if (!old) return old;
+        const response = await createCategory(category);
+        if (!response.success) return;
 
-            return {
-                ...old, 
-                channels: [...old.channels, response.data!]
-            };
-        })
         onClose();
     }
 
@@ -138,12 +125,14 @@ export function CreateCategoryModal({ guildId, onClose }: { guildId: string, onC
                 <ContentBody>
                     <ContentSection>
                         <h2>Category Name</h2>
-                        <TextInputSecondary
-                            value={category.name}
-                            onChange={(val) => setChannel({ ...category, name: val })}
-                            placeholder="New Category">
-                        </TextInputSecondary>
-                        {error && <p>{error}</p>}
+                        <InputContainer>
+                            <TextInputSecondary
+                                value={category.name}
+                                onChange={(val) => setCategory({ ...category, name: val })}
+                                placeholder="New Category">
+                            </TextInputSecondary>
+                        </InputContainer>
+                        {error && <p>{error.message}</p>}
                     </ContentSection>
                     <ContentSection>
                         <div className="flex justify-between">
@@ -151,14 +140,14 @@ export function CreateCategoryModal({ guildId, onClose }: { guildId: string, onC
                                 <FaLock size={14} fill="var(--header-primary)" />
                                 <h1>Private Category</h1>
                             </div>
-                            <Checkbox value={category.isPrivate} onChange={(val) => setChannel({ ...category, isPrivate: val })}></Checkbox>
+                            <Checkbox value={category.isPrivate} onChange={(val) => setCategory({ ...category, isPrivate: val })}></Checkbox>
                         </div>
                         <p className="mt-[8px] leading-[20px]">By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.</p>
                     </ContentSection>
                 </ContentBody>
                 <ContentFooter>
                     <ButtonSecondary onClick={onClose} size="lg">Cancel</ButtonSecondary>
-                    <ButtonPrimary onClick={handleCreateChannel} disabled={category.name.length === 0 || isLoading} size="lg">Create Category</ButtonPrimary>
+                    <ButtonPrimary onClick={handleCreateChannel} disabled={category.name.length === 0 || isPending} size="lg">Create Category</ButtonPrimary>
                 </ContentFooter>
             </ContentContainer>
         </Modal>

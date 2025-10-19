@@ -250,9 +250,9 @@ export function useCreateGuildChannelMutation() {
     return useMutation({
         mutationFn: (dto: CreateChannelDTO) => createGuildChannel(dto),
         onSuccess: (response, dto) => {
-            const { addChannel } = useGuildsStore.getState();
+            const { upsertChannel } = useGuildsStore.getState();
             if (!response.success) throw new Error(response.message as string);
-            addChannel(dto.guildId, response.data!);
+            upsertChannel(dto.guildId, response.data!.id, response.data!);
         }
     })
 }
@@ -377,12 +377,12 @@ export function useUpdatePermissionOverwrite(parentId?: string) {
             if (!response.success) throw new Error(response.message as string);
 
             const overwrite = response.data!;
-            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const { upsertChannel: updateChannel, getChannel } = useGuildsStore.getState();
             const channel = getChannel(dto.channelId);
             const parent = parentId ? getChannel(parentId) : undefined;
             if (!channel) return;
 
-            if (channel.isSynced) {
+            if (channel.isSynced && channel.parent) {
                 channel.isSynced = false;
                 channel.permissionOverwrites = parent!.permissionOverwrites;
             }
@@ -404,7 +404,7 @@ export function useSyncChannel() {
         onSuccess: (response, channelId) => {
             if (!response.success) throw new Error(response.message as string);
 
-            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const { upsertChannel: updateChannel, getChannel } = useGuildsStore.getState();
             const channel = getChannel(channelId);
             if (!channel) return;
 
@@ -419,7 +419,7 @@ export function useDeletePermissionOverwrite() {
         onSuccess: (response, dto) => {
             if (!response.success) throw new Error(response.message as string);
 
-            const { updateChannel, getChannel } = useGuildsStore.getState();
+            const { upsertChannel: updateChannel, getChannel } = useGuildsStore.getState();
             const channel = getChannel(dto.channelId);
             if (!channel) return;
 

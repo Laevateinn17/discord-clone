@@ -347,7 +347,6 @@ function AppInitializer({ children }: { children: ReactNode }) {
                 }
             }
 
-            console.log('user profiels', userProfilesMap.size);
             setChannels(channelMap);
             setUserProfiles(userProfilesMap);
             setCurrentUser(currentUser);

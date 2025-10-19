@@ -9,6 +9,10 @@ import { useModal } from "@/contexts/modal.context";
 import { ModalType } from "@/enums/modal-type.enum";
 import { useContextMenu } from "@/contexts/context-menu.context";
 import { ContextMenuType } from "@/enums/context-menu-type.enum";
+import { checkPermission, getEffectivePermission } from "@/helpers/permissions.helper";
+import { useGetGuild } from "@/app/stores/guilds-store";
+import { useCurrentUserStore } from "@/app/stores/current-user-store";
+import { Permissions } from "@/enums/permissions.enum";
 
 
 const Container = styled.div`
@@ -61,6 +65,9 @@ export function ChannelCategory({ channel, children }: { channel: Channel, child
     const [hoverAddChannel, setHoverAddChannel] = useState(false);
     const pathname = usePathname();
     const { showMenu } = useContextMenu();
+    const guild = useGetGuild(channel.guildId)!;
+    const { user } = useCurrentUserStore();
+    const effectivePermission = getEffectivePermission(guild.members.find(m => m.userId === user.id)!, guild, channel);
 
     return (
         <Container >
@@ -74,7 +81,7 @@ export function ChannelCategory({ channel, children }: { channel: Channel, child
                     <p>{channel.name}</p>
                     <ToggleIcon className={`${collapse ? 'item-collapse' : ''}`}><FaAngleDown size={10} /></ToggleIcon>
                 </CategoryToggleContainer>
-                <div className="relative">
+                {checkPermission(effectivePermission, Permissions.MANAGE_CHANNELS) && <div className="relative">
                     <CreateChannelButton
                         onClick={() => openModal(ModalType.CREATE_CHANNEL, { category: channel, guildId: channel.guildId })}
                         onMouseEnter={() => setHoverAddChannel(true)}
@@ -87,7 +94,7 @@ export function ChannelCategory({ channel, children }: { channel: Channel, child
                         text="Create Channel"
                         fontSize="14px"
                     />
-                </div>
+                </div>}
             </CategoryContainer>
             <ChildrenContainer>
                 {children.map(ch => {

@@ -80,7 +80,7 @@ export function ChannelOverviewSection({ channel }: ChannelOverviewSectionProps)
     const [isLoading, setIsLoading] = useState(false)
     const haveChanges = channelName !== channel.name;
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const { updateChannel: updateGuildChannel } = useGuildsStore();
+    const { upsertChannel: updateGuildChannel } = useGuildsStore();
 
     function resetChanges() {
         setChannelName(channel!.name ?? "");
