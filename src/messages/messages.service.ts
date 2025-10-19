@@ -88,7 +88,7 @@ export class MessagesService {
       };
     }
 
-    const channel = channelResponse.data;
+    const channel: ChannelResponseDTO = channelResponse.data;
     if (channel.type !== ChannelType.DM && channel.type !== ChannelType.Text) {
       return {
         status: HttpStatus.FORBIDDEN,
@@ -98,7 +98,7 @@ export class MessagesService {
     }
 
     const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId: dto.senderId, channelId: dto.channelId, guildId: channelResponse.data.guildId, permission: Permissions.SEND_MESSAGES.toString() }))
-    if (!isAllowed) {
+    if (!isAllowed && channel.type !== ChannelType.DM) {
       return {
         status: HttpStatus.FORBIDDEN,
         message: 'User does not have the permission to send message to this channel',
@@ -205,7 +205,7 @@ export class MessagesService {
     }
 
     const { isAllowed } = await firstValueFrom(this.guildsService.checkPermission({ userId, channelId, guildId: channelResponse.data.guildId, permission: Permissions.VIEW_CHANNELS.toString() }))
-    if (!isAllowed) {
+    if (!isAllowed && channel.type !== ChannelType.DM) {
       return {
         status: HttpStatus.FORBIDDEN,
         message: 'User does not have the permission to view this channel',
