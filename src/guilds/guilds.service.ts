@@ -822,11 +822,13 @@ export class GuildsService {
       };
     }
 
-    if (guild.ownerId !== userId) {
+    const effectivePermission = await this.getBasePermission(userId, guildId);
+
+    if ((effectivePermission & Permissions.MANAGE_SERVERS) !== Permissions.MANAGE_SERVERS) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
-        message: 'Only owner is permitted to perform this action'
+        message: 'User is not permitted to perform this action'
       };
     }
 
