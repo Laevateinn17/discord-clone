@@ -8,10 +8,6 @@ import { CreateMessageDto } from "@/interfaces/dto/create-message.dto";
 import { useCurrentUserStore } from "@/app/stores/current-user-store";
 import { MessageStatus } from "@/enums/message-status.enum";
 import { Message } from "@/interfaces/message";
-import { useChannelsStore } from "@/app/stores/channels-store";
-import { useQueryClient } from "@tanstack/react-query";
-import { MESSAGES_CACHE } from "@/constants/query-keys";
-import { sendMessage } from "@/services/messages/messages.service";
 import MessageItem from "@/components/message-item/message-item";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
 import { dateToShortDate } from "@/utils/date.utils";
@@ -29,8 +25,6 @@ import { checkPermission, getEffectivePermission } from "@/helpers/permissions.h
 import { Permissions } from "@/enums/permissions.enum";
 import { Role } from "@/interfaces/role";
 import { GuildMember } from "@/interfaces/guild-member";
-import { UserProfile } from "@/interfaces/user-profile";
-import { Guild } from "@/interfaces/guild";
 import { getRoleColor } from "@/helpers/color.helper";
 
 const ChatContainer = styled.div`
@@ -38,6 +32,7 @@ const ChatContainer = styled.div`
     flex-direction: column;
     flex-grow: 1;
     min-height: 0;
+    // margin-bottom: 40px;
 `
 
 const MessagesContainer = styled.div`
@@ -323,7 +318,7 @@ export default function Page() {
                 channel={channel}
                 showMemberList={showMemberList}
                 onToggleMemberList={() => setShowMemberList(!showMemberList)} />
-            <div className="flex h-full">
+            <div className="flex flex-1 min-h-0">
                 <ChatContainer>
                     <MessagesContainer>
                         {groupedMessages && Object.keys(groupedMessages).map((key) => {

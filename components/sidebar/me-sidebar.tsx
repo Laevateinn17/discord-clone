@@ -166,7 +166,7 @@ const Pill = styled.div`
 export default function MeSidebarContent() {
     const pathname = usePathname();
     const router = useRouter();
-    const { userProfiles } = useUserProfileStore();
+    const { getUserProfile } = useUserProfileStore();
     const { isUserTyping } = useUserTypingStore();
     const { channels } = useChannelsStore();
     const dmChannels = Array.from(channels.values()).filter(c => c.type === ChannelType.DM);
@@ -235,7 +235,7 @@ export default function MeSidebarContent() {
                         </DMListHeader>
                         <DMListWrapper>
                             {dmChannels?.map((channel) => {
-                                const recipient = userProfiles[channel.recipients[0].id];
+                                const recipient = getUserProfile(channel.recipients![0].id)!;
                                 const isActive = pathname === `/channels/me/${channel.id}`;
                                 const hasNewMessage = channel.userChannelState.unreadCount > 0;
                                 return (

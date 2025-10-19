@@ -230,7 +230,7 @@ export default function Page() {
         // if (!ch) return;
 
         // setChannel(ch)
-        document.title = `Viscord | @${channel.recipients[0].displayName}`
+        document.title = `Viscord | @${channel.recipients![0].displayName}`
     }, [channel]);
 
     useEffect(() => {
