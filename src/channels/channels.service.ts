@@ -1208,6 +1208,8 @@ export class ChannelsService {
     const channel = guild.channels.find(ch => ch.id === channelId);
     if (!channel) return [];
 
+    const parent = guild.channels.find(ch => ch.id === channel.parentId);
+
     const overwrites = channel.permissionOverwrites;
     const everyoneRole = guild.roles.find(role => role.id === guildId);
 
@@ -1220,7 +1222,7 @@ export class ChannelsService {
         effective = allowPermission(effective, role.permissions);
       }
 
-      effective = applyChannelOverwrites(effective, overwrites, member.userId, member.roles, guildId);
+      effective = applyChannelOverwrites(effective, channel.isSynced ? parent.permissionOverwrites : overwrites, member.userId, member.roles, guildId);
 
       return (effective & permission) === permission;
     })
