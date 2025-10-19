@@ -108,14 +108,18 @@ export const useGuildsStore = create<GuildStoreState>((set, get) => ({
         })
     },
     updateChannel: (guildId, channelId, channel) => {
+
+        console.log(channelId, channel);
         set((state) => {
             const guild = state.guilds.get(guildId);
             if (!guild) return state;
-
-            const updatedChannels = guild.channels.map((ch) =>
-                ch.id === channelId
-                    ? { ...ch, ...channel }
-                    : ch
+            const updatedChannels = guild.channels.map((ch) => {
+               if (ch.id === channelId) {
+                const newChannel = { ...ch, ...channel };
+                return newChannel;
+               }
+               else return ch
+            }
             );
 
             const updatedGuild: Guild = { ...guild, channels: updatedChannels };

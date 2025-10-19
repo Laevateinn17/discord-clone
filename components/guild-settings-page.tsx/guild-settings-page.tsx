@@ -7,6 +7,7 @@ import { useGuildsStore } from "@/app/stores/guilds-store"
 import { RoleSettingsSection } from "./roles-settings-section"
 import { AnimatePresence, motion } from "framer-motion"
 import { GuildProfileSection } from "./guild-profile-section"
+import { GuildInvitesSection } from "./guild-invites-section"
 
 interface GuildSettingsPageProps {
     guildId: string;
@@ -50,7 +51,7 @@ export default function GuildSettingsPage({ guildId, show, onClose }: GuildSetti
             },
             {
                 id: 'invites',
-                page: undefined,
+                page: <GuildInvitesSection guildId={guildId}/>,
                 element: <p>Invites</p>
             },
         ]

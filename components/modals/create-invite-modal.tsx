@@ -7,7 +7,7 @@ import { PiHash } from "react-icons/pi";
 import TextInputSecondary from "../text-input/text-input-secondary";
 import TextInput from "../text-input/text-input";
 import { HiMagnifyingGlass } from "react-icons/hi2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChannelsStore } from "@/app/stores/channels-store";
 import UserAvatar from "../user-avatar/user-avatar";
 import { useUserProfileStore } from "@/app/stores/user-profiles-store";
@@ -211,12 +211,15 @@ export function CreateInviteModal({ channelId, guildId, onClose }: CreateInviteM
     const [copied, setCopied] = useState(false);
     const [screen, setScreen] = useState<"create-invite" | "edit-invite">("create-invite")
     const [inviteSettings, setInviteSettings] = useState<CreateInviteDto>({ guildId, channelId, maxAge: INVITE_DURATIONS["7 days"] });
+    const didRun = useRef(false);
 
     useEffect(() => {
-        console.log('creating invite');
+        if (didRun.current) return;
+        didRun.current = true;
+
         createOrGetInvite(inviteSettings).then(response => {
             if (response) setInvite(response.data);
-        })
+        });
     }, []);
 
     if (!guild) {
@@ -309,7 +312,7 @@ export function CreateInviteModal({ channelId, guildId, onClose }: CreateInviteM
                                     setInviteSettings(prev => ({ ...prev, maxAge: INVITE_DURATIONS[key as keyof typeof INVITE_DURATIONS]! }))
                                 }
                             }
-                            }/>
+                            } />
                     </ContentBody>
                     <InviteLinkSettingActionButtons>
                         <ButtonSecondary size="lg" onClick={() => setScreen("create-invite")}>Cancel</ButtonSecondary>

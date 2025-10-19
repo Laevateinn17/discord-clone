@@ -34,7 +34,7 @@ export async function deleteInvite(inviteId: string): Promise<Response<null>> {
 
 export async function joinGuild(inviteCode: string): Promise<Response<Guild>> {
     try {
-        const response = await api.post(`${INVITE_ENDPOINT}/${inviteCode}/`, {}, {
+        const response = await api.post(`${INVITE_ENDPOINT}/${inviteCode}/`, null, {
             withCredentials: true
         });
         if (response.status === HttpStatusCode.Ok) {

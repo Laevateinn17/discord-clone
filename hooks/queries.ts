@@ -1,7 +1,7 @@
 import { CURRENT_USER_CACHE, DM_CHANNELS_CACHE, GUILDS_CACHE, MESSAGES_CACHE, RELATIONSHIPS_CACHE } from "@/constants/query-keys";
 import { Guild } from "@/interfaces/guild";
 import { getDMChannels } from "@/services/channels/channels.service";
-import { getGuildDetail, getGuilds } from "@/services/guild/guild.service";
+import { getGuildDetail, getGuildInvites, getGuilds } from "@/services/guild/guild.service";
 import { getMessages } from "@/services/messages/messages.service";
 import { UndefinedInitialDataOptions, useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import { Message } from "@/interfaces/message"
@@ -123,5 +123,18 @@ export function useRelationshipsQuery(options?: Omit<UseQueryOptions<Relationshi
             }
             return res.data!;
         },
+    });
+}
+
+export function useGetGuildInvites(guildId: string) {
+    return useQuery({
+        queryKey: ['guildInvites', guildId],
+        queryFn: async ({ queryKey }) => {
+            const [, guildId] = queryKey;
+            const res = await getGuildInvites(guildId as string);
+            if (!res.success) throw Error();
+            return res.data!;
+        },
+        staleTime: 0
     });
 }

@@ -22,6 +22,7 @@ import { useChannelsStore } from "@/app/stores/channels-store";
 import { GuildUpdateDTO } from "@/interfaces/dto/guild-update.dto";
 import { GuildUpdateType } from "@/enums/guild-update-type.enum";
 import { useGuildsStore } from "@/app/stores/guilds-store";
+import { Channel } from "@/interfaces/channel";
 
 export interface SocketContextType {
     socket: Socket | undefined;
@@ -130,12 +131,13 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     }, [setVoiceStates]);
 
     function handleGuildUpdate(dto: GuildUpdateDTO) {
+        console.log('guild update', dto);
         const { addChannel, deleteChannel, upsertMember: addMember, removeMember, updateChannel } = useGuildsStore.getState();
         switch (dto.type) {
             case GuildUpdateType.MEMBER_JOIN: addMember(dto.guildId, dto.data); break;
             case GuildUpdateType.MEMBER_LEAVE: removeMember(dto.guildId, dto.data); break;
             case GuildUpdateType.CHANNEL_DELETE: deleteChannel(dto.guildId, dto.data); break;
-            case GuildUpdateType.CHANNEL_UPDATE: updateChannel(dto.guildId, dto.data.channelId, dto.data);
+            case GuildUpdateType.CHANNEL_UPDATE: updateChannel(dto.guildId, (dto.data as Channel).id, dto.data);
         }
 
     }

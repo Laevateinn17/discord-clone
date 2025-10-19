@@ -60,9 +60,10 @@ export function getEffectivePermission(member: GuildMember, guild: Guild, channe
     for (const role of roles) {
         basePermissions = allowPermission(basePermissions, BigInt(role.permissions));
     }
-
+    if (channel?.id === '904b24de-062e-4e4c-bc23-22f5be8e7de1') console.log('1', basePermissions)
     if (channel) {
         basePermissions = applyChannelOverwrites(basePermissions, channel.isSynced && parent ? parent.permissionOverwrites : channel.permissionOverwrites, member.userId, roles, guild.id);
+        if (channel?.id === '904b24de-062e-4e4c-bc23-22f5be8e7de1') console.log('2', channel.isSynced, parent?.permissionOverwrites)
     }
 
     return basePermissions;
@@ -73,7 +74,7 @@ export function checkPermission(memberPermission: bigint, permission: bigint) {
 }
 
 export function getPermissionStatus(overwrite: PermissionOverwrite, perm: bigint): -1 | 0 | 1 {
-  if ((BigInt(overwrite.deny) & perm) === perm) return -1;
-  if ((BigInt(overwrite.allow) & perm) === perm) return 1;
-  return 0;
+    if ((BigInt(overwrite.deny) & perm) === perm) return -1;
+    if ((BigInt(overwrite.allow) & perm) === perm) return 1;
+    return 0;
 }
