@@ -19,7 +19,6 @@ export class GuildsController {
 
     @MessagePattern(GUILD_UPDATE_EVENT)
     async handleGuildUpdate(@Body(new ValidationPipe({transform: true})) dto: Payload<any>) {
-        console.log('guild update', dto)
         this.gateway.handleGuildUpdate(dto);
     }
 }

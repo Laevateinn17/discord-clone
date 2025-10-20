@@ -8,7 +8,6 @@ export class PresenceService {
         private readonly redisService: RedisService
     ) { }
 
-
     async setUserPresence(userId: string): Promise<boolean> {
         try {
             const client = await this.redisService.getClient();
