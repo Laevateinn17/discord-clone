@@ -19,6 +19,7 @@ import axios from "axios";
 import { firstValueFrom } from "rxjs";
 import { UserStatus } from "./enums/user-status.enum";
 import { RelationshipsService } from "src/relationships/relationships.service";
+import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 
 @Injectable()
 export class UserProfilesService {
@@ -238,6 +239,51 @@ export class UserProfilesService {
         message: "User not found",
       };
     }
+  }
+
+  async updateUserProfile(dto: UpdateUserProfileDto): Promise<Result<UserProfileResponseDTO>> {
+    const profile = await this.userProfileRepository.findOneBy({ id: dto.id });
+
+    if (!profile) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        data: null,
+        message: 'Profile not found'
+      };
+    }
+
+    profile.displayName = !dto.displayName || dto.displayName.length === 0 ? profile.username : dto.displayName;
+    profile.bio = dto.bio;
+    profile.pronouns = dto.pronouns;
+
+    try {
+      await this.userProfileRepository.save(profile);
+    } catch (error) {
+      console.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        data: null,
+        message: 'An error occurred while saving profile'
+      };
+    }
+
+    const profileDTO = mapper.map(profile, UserProfile, UserProfileResponseDTO);
+
+    try {
+      this.gatewayMQ.emit(USER_PROFILE_UPDATE_EVENT, {
+        recipients: [],
+        targetIds: [profile.id],
+        data: profileDTO
+      } as Payload<UserProfileResponseDTO>)
+    } catch (error) {
+      console.error(error);
+    }
+
+    return {
+      status: HttpStatus.OK,
+      data: profileDTO,
+      message: 'User profile updated successfully'
+    };
   }
 
 

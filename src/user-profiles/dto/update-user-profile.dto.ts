@@ -1,4 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateUserProfileDto } from './create-user-profile.dto';
+import { AutoMap } from "@automapper/classes";
 
-export class UpdateUserProfileDto extends PartialType(CreateUserProfileDto) {}
+export class UpdateUserProfileDto {
+    @AutoMap()
+    id: string
+
+    @AutoMap()
+    displayName: string;
+    
+    @AutoMap()
+    pronouns?: string;
+    
+    @AutoMap()
+    bio?: string;
+}
