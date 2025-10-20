@@ -3,7 +3,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, u
 import { io, Socket } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import Relationship from "@/interfaces/relationship";
-import { FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_VOICE_STATES_EVENT, GUILD_UPDATE_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_STATUS_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_CANCEL, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "@/constants/events";
+import { FRIEND_ADDED_EVENT, FRIEND_REMOVED_EVENT, FRIEND_REQUEST_RECEIVED_EVENT, GET_VOICE_STATES_EVENT, GUILD_UPDATE_EVENT, MESSAGE_RECEIVED_EVENT, USER_OFFLINE_EVENT, USER_ONLINE_EVENT, USER_PROFILE_UPDATE_EVENT, USER_TYPING_EVENT, VOICE_RING_CANCEL, VOICE_RING_DISMISS_EVENT, VOICE_RING_EVENT, VOICE_UPDATE_EVENT } from "@/constants/events";
 import { MESSAGES_CACHE, RELATIONSHIPS_CACHE } from "@/constants/query-keys";
 import { Message } from "@/interfaces/message";
 import { HttpStatusCode } from "axios";
@@ -24,6 +24,7 @@ import { GuildUpdateType } from "@/enums/guild-update-type.enum";
 import { useGuildsStore } from "@/app/stores/guilds-store";
 import { Channel } from "@/interfaces/channel";
 import { GuildMember } from "@/interfaces/guild-member";
+import { UserProfile } from "@/interfaces/user-profile";
 
 export interface SocketContextType {
     socket: Socket | undefined;
@@ -43,7 +44,7 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
 
     const queryClient = useQueryClient();
     const { presenceMap, updatePresence } = useUserPresenceStore();
-    const { userProfiles, updateStatus } = useUserProfileStore();
+    const { userProfiles, upsertUserProfile } = useUserProfileStore();
     const { handleTypingStart, handleTypingStop } = useUserTypingStore();
     const { updateVoiceState, removeVoiceState, setVoiceStates } = useVoiceStateStore();
     const { getChannel, updateChannel } = useChannelsStore();
@@ -83,7 +84,6 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     }
 
     function handleFriendOffline(userId: string) {
-        console.log(userId, 'offline');
         updatePresence(userId, false);
     }
 
@@ -91,7 +91,6 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         handleTypingStop(payload.channelId, payload.senderId);
         const { getChannel, updateChannel } = useChannelsStore.getState();
         const channel = getChannel(payload.channelId);
-        console.log('message received', channel, payload)
         if (channel) updateChannel({ ...channel, lastMessageId: payload.id, userChannelState: { ...channel.userChannelState, unreadCount: channel.userChannelState.unreadCount + 1 } });
 
         queryClient.setQueryData<Message[]>([MESSAGES_CACHE, payload.channelId], (old) => {
@@ -106,13 +105,14 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         })
     }
 
-    const handleUserStatusUpdate = useCallback((payload: { userId: string, status: UserStatus }) => {
-        updateStatus(payload.userId, payload.status);
-    }, [updateStatus]);
+    const handleUserStatusUpdate = (payload: UserProfile) => {
+        upsertUserProfile(payload);
+    };
 
-    const handleUserTyping = useCallback((payload: { userId: string, channelId: string }) => {
+    const handleUserTyping = (payload: { userId: string, channelId: string }) => {
+        console.log('typing', payload);
         handleTypingStart(payload.channelId, payload.userId);
-    }, [handleTypingStart]);
+    };
 
     const handleVoiceStateUpdate = useCallback(async (event: VoiceEventDTO) => {
         if (event.type === VoiceEventType.VOICE_LEAVE) {
@@ -188,7 +188,7 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
         socket!.on(USER_OFFLINE_EVENT, handleFriendOffline);
         socket!.on(MESSAGE_RECEIVED_EVENT, handleMessageReceived);
         socket!.on(USER_TYPING_EVENT, handleUserTyping);
-        socket!.on(USER_STATUS_UPDATE_EVENT, handleUserStatusUpdate);
+        socket!.on(USER_PROFILE_UPDATE_EVENT, handleUserStatusUpdate);
         socket!.on(VOICE_UPDATE_EVENT, handleVoiceStateUpdate);
         socket!.on(GET_VOICE_STATES_EVENT, handleGetVoiceStates);
         socket.on(GUILD_UPDATE_EVENT, handleGuildUpdate);

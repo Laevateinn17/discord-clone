@@ -300,7 +300,7 @@ export function useJoinGuildMutation() {
             if (!response.success) throw new Error(response.message as string);
 
             const { upsertGuild: addGuild } = useGuildsStore.getState();
-            const { addUserProfile } = useUserProfileStore.getState();
+            const { upsertUserProfile: addUserProfile } = useUserProfileStore.getState();
             const guild = response.data!;
 
             addGuild(guild);

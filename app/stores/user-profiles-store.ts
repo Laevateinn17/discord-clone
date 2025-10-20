@@ -1,5 +1,6 @@
 import { UserStatus } from "@/enums/user-status.enum";
 import { UserProfile } from "@/interfaces/user-profile";
+import { statsBuffer } from "framer-motion";
 import { create } from "zustand";
 
 type UserProfileMap = Map<string, UserProfile>;
@@ -8,9 +9,8 @@ type UserProfileMap = Map<string, UserProfile>;
 interface UserProfileStoreState {
     userProfiles: UserProfileMap;
     setUserProfiles: (userProfiles: UserProfileMap) => void;
-    updateStatus: (userId: string, status: UserStatus) => void;
     getUserProfile: (userId: string) => UserProfile | undefined;
-    addUserProfile: (userProfile: UserProfile) => void;
+    upsertUserProfile: (userProfile: UserProfile) => void;
 }
 
 export const useUserProfileStore = create<UserProfileStoreState>((set, get) => ({
@@ -18,26 +18,23 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
     setUserProfiles: (userProfiles: UserProfileMap) => {
         set({ userProfiles })
     },
-    updateStatus: (userId, status) => {
-        set(state => {
-            const user = state.userProfiles.get(userId);
-            if (!user) return state;
-
-            const updatedUser: UserProfile = { ...user, status };
-
-            const newMap = new Map(state.userProfiles);
-            newMap.set(user.id, updatedUser);
-
-            return { userProfiles: newMap };
-        });
-    },
     getUserProfile: (userId: string) => {
         return get().userProfiles.get(userId);
     },
-    addUserProfile: (userProfile: UserProfile) => {
+    upsertUserProfile: (userProfile: UserProfile) => {
         set((state) => {
+
             const newMap = new Map(state.userProfiles);
-            newMap.set(userProfile.id, userProfile);
+            const existing = newMap.get(userProfile.id);
+            if (!existing) {
+                newMap.set(userProfile.id, userProfile);
+            }
+            else {
+                newMap.set(userProfile.id, {
+                    ...existing,
+                    ...userProfile
+                });
+            }
 
             return { userProfiles: newMap };
         })

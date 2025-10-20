@@ -17,7 +17,7 @@ import { ContextMenuProvider } from "@/contexts/context-menu.context";
 import AppStateProvider, { useAppState } from "@/contexts/app-state.context";
 import SocketProvider, { useSocket } from "@/contexts/socket.context";
 import { UserPresenceProvider, useUserPresence } from "@/contexts/user-presence.context";
-import { CLIENT_READY_EVENT } from "@/constants/events";
+import { CLIENT_READY_EVENT, SUBSCRIBE_EVENTS, USER_PROFILE_UPDATE_EVENT } from "@/constants/events";
 import { UserProfile } from "@/interfaces/user-profile";
 import { unique } from "next/dist/build/utils";
 import { useGetUserProfile, useUserProfileStore } from "../stores/user-profiles-store";
@@ -38,6 +38,7 @@ import { ModalType } from "@/enums/modal-type.enum";
 import { useGuildsStore } from "../stores/guilds-store";
 import { Guild } from "@/interfaces/guild";
 import { SettingsOverlayProvider } from "@/contexts/settings-overlay.context";
+import { SubscribeEventDTO } from "@/interfaces/dto/subscribe-event.dto";
 
 interface HomeLayoutProps {
     children: ReactNode
@@ -315,6 +316,7 @@ function AppInitializer({ children }: { children: ReactNode }) {
         socket?.emit(CLIENT_READY_EVENT, (data: ClientReadyResponseDTO) => {
             const currentUser = data.user;
             const guildsMap: Map<string, Guild> = new Map();
+            const eventSubscriptions: SubscribeEventDTO[] = [];
 
             if (data.guilds) {
                 for (const guild of data.guilds) {
@@ -336,6 +338,7 @@ function AppInitializer({ children }: { children: ReactNode }) {
 
             let userProfilesMap: Map<string, UserProfile> = new Map();
             for (let [key, value] of uniqueUsers) {
+                eventSubscriptions.push({ event: USER_PROFILE_UPDATE_EVENT, targetId: value.id });
                 userProfilesMap.set(key, value);
             }
 
@@ -352,14 +355,14 @@ function AppInitializer({ children }: { children: ReactNode }) {
             setCurrentUser(currentUser);
             setGuilds(guildsMap);
 
-
             const presenceMap: Map<string, boolean> = new Map();
-
             for (const user of data.presences) {
                 presenceMap.set(user, true);
             }
 
             setPresenceMap(presenceMap);
+
+            socket.emit(SUBSCRIBE_EVENTS, eventSubscriptions);
 
             setIsLoading(false);
         });

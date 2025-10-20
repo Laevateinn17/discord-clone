@@ -335,7 +335,9 @@ export default function Page() {
                                                 <MessageItem
                                                     message={{ ...message }}
                                                     isSubsequent={isSubsequent}
-                                                    sender={getUserProfile(message.senderId)!} />
+                                                    sender={getUserProfile(message.senderId)!}
+                                                    guild={guild}
+                                                />
                                             </Fragment>
                                         )
                                     }).reverse()}

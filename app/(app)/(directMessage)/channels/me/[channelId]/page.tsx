@@ -223,6 +223,7 @@ export default function Page() {
     const { mutateAsync: sendMessage } = useSendMessageMutation();
     const { mutate: acknowledgeMessage } = useAcknowledgeMessageMutation();
 
+
     useEffect(() => {
         if (!channel) return;
 

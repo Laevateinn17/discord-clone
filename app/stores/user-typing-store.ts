@@ -47,6 +47,7 @@ export const useUserTypingStore = create<UserTypingStoreState>((set, get) => ({
             }, TYPING_TIMEOUT);
 
             newTypingUsers.set(key, { channelId: channelId, userId: userId, timeoutId: id });
+            console.log('new typing user', newTypingUsers);
             return { typingUsers: newTypingUsers };
         });
     },

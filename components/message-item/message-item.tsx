@@ -10,6 +10,7 @@ import { useContextMenu } from "@/contexts/context-menu.context";
 import { useRelationshipsQuery } from "@/hooks/queries";
 import { ContextMenuType } from "@/enums/context-menu-type.enum";
 import { Guild } from "@/interfaces/guild";
+import { numberToHex } from "@/helpers/color.helper";
 
 const Container = styled.div`
     display: flex;
@@ -123,11 +124,11 @@ export default function MessageItem({ sender, message, isSubsequent = false, gui
     const [hover, setHover] = useState(false);
     const { data: relationships } = useRelationshipsQuery();
     const { showMenu } = useContextMenu();
-    const senderColor = guild?.roles.filter(role => {
+    const highestRole = guild?.roles.filter(role => {
         const member = guild?.members.find(m => m.userId === sender.id);
 
         return member?.roles.find(roleId => roleId === role.id);
-    }).sort(position);
+    }).sort((a, b) => b.position - a.position)[0];
 
 
     return (
@@ -146,7 +147,9 @@ export default function MessageItem({ sender, message, isSubsequent = false, gui
             <ContentContainer >
                 {!isSubsequent &&
                     <SubsequentMessageHelper>
-                        <SenderNameText onContextMenu={(e) => {
+                        <SenderNameText
+                        style={{color: highestRole ? numberToHex(highestRole.color) : ''}}
+                        onContextMenu={(e) => {
                             const relationship = relationships?.find(rel => rel.user.id === sender.id)
                             if (relationship) {
                                 showMenu(e, ContextMenuType.USER, relationship)
