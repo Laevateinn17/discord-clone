@@ -25,6 +25,8 @@ import { updatePermissionOverwriteDTO } from "@/interfaces/dto/update-permission
 import { Channel } from "@/interfaces/channel";
 import { UpdateGuildDTO } from "@/interfaces/dto/update-guild.dto";
 import { DeleteRoleDTO } from "@/interfaces/dto/delete-role.dto";
+import { UpdateUserProfileDto } from "@/interfaces/dto/update-user-profile.dto";
+import { updateUserProfile } from "@/services/user-profiles/user-profiles.service";
 
 
 
@@ -455,4 +457,18 @@ export function useDeleteRoleMutation() {
             removeRole(dto.guildId, dto.roleId);
         }
     });
+}
+
+export function useUpdateUserProfileMutation() {
+    return useMutation({
+        mutationFn: (dto: UpdateUserProfileDto) => updateUserProfile(dto),
+        onSuccess: (response) => {
+            if (!response.success) throw new Error(response.message as string);
+
+            const { upsertUserProfile } = useUserProfileStore.getState();
+
+            upsertUserProfile(response.data!);
+        }
+    });
+
 }

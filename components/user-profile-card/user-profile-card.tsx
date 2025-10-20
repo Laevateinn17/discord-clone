@@ -23,7 +23,7 @@ const Container = styled.div`
 `
 
 
-const Banner = styled.div`
+const BannerContainer = styled.div`
     min-height: 105px;
     border-radius: 8px 8px 0 0;
     width: 100%;
@@ -155,7 +155,7 @@ function CopyUsernameButton({ user, show }: { user: UserProfile, show: boolean }
     )
 }
 
-function Header({ user }: { user: UserProfile }) {
+function Banner({ user }: { user: UserProfile }) {
     const imgRef = useRef<HTMLImageElement>(null!);
     const [bannerColor, setBannerColor] = useState<string | null>();
     const avatarURL = user.avatarURL ? getImageURL('avatars', user.avatarURL) : getImageURL('assets', user.defaultAvatarURL);
@@ -178,7 +178,7 @@ function Header({ user }: { user: UserProfile }) {
     return (
         <div>
             <div className="relative">
-                <Banner style={{ backgroundColor: bannerColor ?? "" }}></Banner>
+                <BannerContainer style={{ backgroundColor: bannerColor ?? "" }}></BannerContainer>
                 <img
                     src={avatarURL}
                     ref={imgRef}
@@ -255,7 +255,7 @@ export const CurrentUserProfileCard = ({ user }: { user: UserProfile }) => {
 
     return (
         <Container onMouseEnter={() => setShowCopyUsernameButton(true)} onMouseLeave={() => setShowCopyUsernameButton(false)}>
-            <Header user={user} />
+            <Banner user={user} />
             <Body>
                 <div className="">
                     <div className="flex gap-2 items-center">
@@ -299,6 +299,25 @@ export const CurrentUserProfileCard = ({ user }: { user: UserProfile }) => {
                         }
                     </ActionButton>
                 </ActionsContainer>
+            </Body>
+        </Container>
+    );
+}
+
+export const UserProfileCard = ({ user }: { user: UserProfile }) => {
+    const [showCopyUsernameButton, setShowCopyUsernameButton] = useState(false);
+
+    return (
+        <Container onMouseEnter={() => setShowCopyUsernameButton(true)} onMouseLeave={() => setShowCopyUsernameButton(false)}>
+            <Banner user={user} />
+            <Body>
+                <div className="">
+                    <div className="flex gap-2 items-center">
+                        <DisplayNameText>{user.displayName}</DisplayNameText>
+                        <CopyUsernameButton show={showCopyUsernameButton} user={user} />
+                    </div>
+                    <UsernameText>{user.username}</UsernameText>
+                </div>
             </Body>
         </Container>
     );

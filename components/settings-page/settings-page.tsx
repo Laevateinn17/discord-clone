@@ -16,6 +16,7 @@ import { useLogoutMutation } from "@/hooks/mutations"
 import { MediaSettingsSection } from "./media-settings-section"
 import styled from "styled-components"
 import { AnimatePresence, motion } from "framer-motion"
+import { UserProfileSection } from "./user-profile-section"
 
 interface SettingsPageProps {
     show: boolean
@@ -47,7 +48,7 @@ export default function SettingsPage({ show, onClose }: SettingsPageProps) {
             },
             {
                 id: "profiles",
-                page: undefined,
+                page: <UserProfileSection/>,
                 element: <p>Profiles</p>
             },
             {
