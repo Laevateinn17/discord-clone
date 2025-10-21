@@ -202,6 +202,9 @@ export class GuildsService {
             channel.userChannelState = userChannelStateResponse.data;
             channel.permissionOverwrites = ch.permissionOverwrites.map(ow => mapper.map(ow, PermissionOverwrite, PermissionOverwriteResponseDTO))
 
+            if (channel.name === 'general') {
+              console.log(ch, channel);
+            }
             return channel;
           }),
         );

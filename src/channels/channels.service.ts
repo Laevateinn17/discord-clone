@@ -597,7 +597,7 @@ export class ChannelsService {
 
     const effectivePermission = await this.getEffectivePermission({ userId: dto.userId, channelId: dto.channelId, guildId: channel.guildId });
 
-    if (!((effectivePermission & Permissions.VIEW_CHANNELS) === Permissions.VIEW_CHANNELS)) {
+    if (channel.guildId && !((effectivePermission & Permissions.VIEW_CHANNELS) === Permissions.VIEW_CHANNELS)) {
       return {
         status: HttpStatus.FORBIDDEN,
         data: null,
