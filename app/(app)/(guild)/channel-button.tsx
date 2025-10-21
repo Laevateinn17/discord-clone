@@ -153,7 +153,7 @@ const Pill = styled.div`
 
     &.minimal {
         transform: scale(1);
-        height: 10px;
+        height: 8px;
     }
 `
 

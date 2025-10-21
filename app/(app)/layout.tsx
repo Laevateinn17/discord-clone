@@ -73,6 +73,12 @@ const Pill = styled.div`
     transform: scale(0);
     transition: all 150ms ease-in;
 
+
+    &.minimal {
+        transform: scale(1);
+        height: 8px;
+    }
+        
     &.active {
         height: 40px;
         transform: scale(1);
@@ -80,11 +86,6 @@ const Pill = styled.div`
 
     &.hover {
         transform: scale(1);
-    }
-
-    &.minimal {
-        transform: scale(1);
-        height: 10px;
     }
 `
 
@@ -106,11 +107,15 @@ const IconContainer = styled.div`
     }
 `
 
-export function GuildIcon({ children, guild, onClick }: { children: ReactNode, guild: GuildSummary, onClick?: () => void }) {
+export function GuildIcon({ children, guildSummary, onClick }: { children: ReactNode, guildSummary: GuildSummary, onClick?: () => void }) {
     const pathName = usePathname();
     const router = useRouter();
     const [isHovering, setIsHovering] = useState(false);
-    const targetPath = `/channels/${guild.id}`;
+    const targetPath = `/channels/${guildSummary.id}`;
+    const { getGuild } = useGuildsStore();
+    const guild = getGuild(guildSummary.id);
+    const hasUnread = !!(guild?.channels.find(ch => ch.userChannelState.unreadCount > 0));
+    const isActive = pathName.includes(targetPath);
 
     function onMouseEnter() {
         setIsHovering(true);
@@ -123,7 +128,7 @@ export function GuildIcon({ children, guild, onClick }: { children: ReactNode, g
     return (
         <GuildIconContainer>
             <PillWrapper>
-                <Pill className={`${isHovering ? 'hover' : ''} ${pathName.includes(targetPath) ? 'active' : ''}`} />
+                <Pill className={`${hasUnread ? 'minimal' : ''} ${isHovering ? 'hover' : ''} ${isActive ? 'active' : ''}`} />
             </PillWrapper>
             <IconContainer
                 className={`${pathName.includes(targetPath) ? 'active' : ''}`}
@@ -135,7 +140,7 @@ export function GuildIcon({ children, guild, onClick }: { children: ReactNode, g
                 })}>
                 {children}
             </IconContainer>
-            <Tooltip show={isHovering} text={guild.name} position="right" />
+            <Tooltip show={isHovering} text={guildSummary.name} position="right" />
         </GuildIconContainer>
     )
 }
@@ -269,7 +274,7 @@ function GuildListSidebar() {
             {guilds && Array.from(guilds.values()).map(guild => {
                 const initials = guild.name.split(' ').map(s => s[0]).join(' ');
                 return (
-                    <GuildIcon key={guild.id} guild={guild}>
+                    <GuildIcon key={guild.id} guildSummary={guild}>
                         {guild.iconURL ?
                             <img
                                 className="w-full h-full"
@@ -281,13 +286,13 @@ function GuildListSidebar() {
                 )
             })}
             <div className="">
-                <GuildIcon guild={{ id: 'create', name: 'Add a server' }} onClick={() => { openModal(ModalType.CREATE_GUILD) }}>
+                <GuildIcon guildSummary={{ id: 'create', name: 'Add a server' }} onClick={() => { openModal(ModalType.CREATE_GUILD) }}>
                     <FaCirclePlus size={20} />
                 </GuildIcon>
-                <GuildIcon guild={{ id: 'discovery', name: 'Discover' }}>
+                <GuildIcon guildSummary={{ id: 'discovery', name: 'Discover' }}>
                     <FaCompass size={20} />
                 </GuildIcon>
-                <GuildIcon guild={{ id: 'download', name: 'Download app' }}>
+                <GuildIcon guildSummary={{ id: 'download', name: 'Download app' }}>
                     <HiDownload size={20} />
                 </GuildIcon>
             </div>
