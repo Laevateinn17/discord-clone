@@ -110,8 +110,16 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @Post('logout')
   async logout(@Req() req: Request, @Res() res: Response) {
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    res.clearCookie("accessToken", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: '/',
+      });
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: '/api/auth',
+      });
 
     return res.status(HttpStatus.OK).send();
   }
