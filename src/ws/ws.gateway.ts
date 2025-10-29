@@ -277,7 +277,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
       this.channelMQ.emit(GET_VOICE_STATES_EVENT, userId);
       this.channelMQ.emit(GET_VOICE_RINGS_EVENT, userId);
 
-      const guilds = guildsResponse.data;
+      const guilds = guildsResponse.data ?? [];
       for (const guild of guilds) {
         if (!guild.roles) guild.roles = [];
         if (!guild.channels) guild.channels = [];
