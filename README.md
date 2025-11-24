@@ -1,5 +1,5 @@
 
-# Viscord
+# Viscord - Discord clone using microservices
 
 A Discord clone with real time chat, voice, and core features implemented using NextJS, NestJS, WebRTC and microservices architecture.
 
